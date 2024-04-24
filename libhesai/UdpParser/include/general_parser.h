@@ -241,8 +241,8 @@ class GeneralParser {
   uint32_t loss_count_;
   uint32_t start_time_;
   double firetime_correction_[512];
-  bool enable_firetime_correction_;
-  bool enable_distance_correction_;
+  bool enable_firetime_correction_ = true;
+  bool enable_distance_correction_ = true;
   bool enable_packet_loss_tool_;
   Transform transform_;
   float frame_start_azimuth_;
