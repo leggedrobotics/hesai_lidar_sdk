@@ -84,7 +84,7 @@ static constexpr int kMaxTimeInterval = 150000;
 //length of fault message packet
 static constexpr int kFaultMessageLength = 99;
 
-static constexpr int kPacketBufferSize = 36000;
+static constexpr uint32_t kPacketBufferSize = 3600000;
 //default udp data max lenth
 static const uint16_t kBufSize = 1500;
 typedef struct LidarPointXYZI

@@ -57,7 +57,7 @@ void SetThreadPriority(int policy, int priority) {
 
   int ret_policy;
   pthread_getschedparam(pthread_self(), &ret_policy, &param);
-  printf("get thead %lu, tid %ld, policy %d and priority %d\n", pthread_self(),
+  printf("get thread %lu, tid %ld, policy %d and priority %d\n", pthread_self(),
          gettid(), ret_policy, param.sched_priority);
 }
 #endif

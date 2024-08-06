@@ -23,6 +23,27 @@ set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 endif()
 
 
+set(CATKIN_PACKAGE_DEPENDENCIES
+  roscpp
+  roslib
+  rosbag
+  )
+
+find_package(catkin REQUIRED COMPONENTS
+  ${CATKIN_PACKAGE_DEPENDENCIES}
+  )
+
+catkin_package(
+  INCLUDE_DIRS
+  include
+  LIBRARIES
+  yaml-cpp
+  ${PROJECT_NAME}
+  CATKIN_DEPENDS
+  ${CATKIN_PACKAGE_DEPENDENCIES}
+  DEPENDS
+)
+
 include_directories("${PROJECT_BINARY_DIR}")
 find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 find_package(OpenSSL REQUIRED)

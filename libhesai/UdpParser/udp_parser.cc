@@ -320,7 +320,9 @@ int UdpParser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDeco
   if (parser_ == nullptr) {
     return -1;
   }
+  // return 0;
   if (parser_ != nullptr) {
+    // std::cout << "Parser not null\n";
     return parser_->ComputeXYZI(frame, packet);
   }
 }

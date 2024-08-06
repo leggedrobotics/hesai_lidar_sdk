@@ -123,6 +123,9 @@ public:
   void EnableRecordPcap(bool bRecord);
   // set the parser thread number
   void SetThreadNum(int thread_num);
+
+  void computeDecodedXYZI();
+
   void SetSource(Source **source);
   std::string GetLidarType();
   UdpParser<T_Point> *udp_parser_;

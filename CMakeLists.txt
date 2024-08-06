@@ -24,6 +24,17 @@ endif()
 
 
 include_directories("${PROJECT_BINARY_DIR}")
+
+set(CATKIN_PACKAGE_DEPENDENCIES
+  roscpp
+  roslib
+  rosbag
+  )
+
+find_package(roscpp REQUIRED)
+find_package(rosbag REQUIRED)
+find_package(roslib REQUIRED)
+
 find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 find_package(OpenSSL REQUIRED)
 add_definitions(-DQT_MESSAGELOGCONTEXT)
@@ -85,33 +96,4 @@ target_link_libraries(sample
   
 # )
 
-find_package(CUDA )
-if(${CUDA_FOUND})
-	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-	set(CUDA_SEPARABLE_COMPILATION ON)
-	include_directories(${CUDA_INCLUDE_DIRS})
-	set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-	set(CUDA_NVCC_FLAGS -arch=sm_61;-O3;-G;-g;-std=c++14)#根据具体GPU性能更改算力参数
-	link_directories($ENV{CUDA_PATH}/lib/x64)
-  file(GLOB_RECURSE CURRENT_HEADERS  *.h *.hpp *.cuh)
-  file(GLOB CURRENT_SOURCES  *.cpp *.cu)
-  file(GLOB CURRENT_SOURCES  *.cpp *.cu)
-  source_group("Include" FILES ${CURRENT_HEADERS}) 
-  source_group("Source" FILES ${CURRENT_SOURCES}) 
-  CUDA_ADD_EXECUTABLE(sample_gpu ${CURRENT_HEADERS} ${CURRENT_SOURCES} 
-  ./test/test.cu
-  ./libhesai/UdpParserGpu/src/buffer.cu)
-  target_link_libraries(sample_gpu
-  ${Boost_LIBRARIES}
-  source_lib
-  container_lib
-  ptcClient_lib
-  log_lib
-  ptcParser_lib
-  ${OPENSSL_LIBRARIES}
-  # ${PCL_LIBRARIES} 
-)
-else(${CUDA_FOUND})
-	MESSAGE(STATUS "cuda not found!")
-endif(${CUDA_FOUND})
 

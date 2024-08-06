@@ -40,6 +40,7 @@ private:
   boost::thread *runing_thread_ptr_;
   std::function<void(const UdpFrame_t&, double)> pkt_cb_;
   std::function<void(const LidarDecodedFrame<T_Point>&)> point_cloud_cb_;
+  std::function<void()> my_cb_;
   bool is_thread_runing_;
   bool packet_loss_tool_;
 public:
@@ -59,6 +60,7 @@ public:
   //init lidar with param. init logger, udp parser, source, ptc client, start receive/parser thread
   bool Init(const DriverParam& param) 
   {
+    std::cout << "DRIVERPARAM INIT CALLED" << std::endl;
    /*****************************Init decoder******************************************************/ 
     lidar_ptr_ = new Lidar<T_Point>;
     if (nullptr == lidar_ptr_) {
@@ -68,7 +70,7 @@ public:
     //init lidar with param
     lidar_ptr_->Init(param);
     //set packet_loss_tool
-    packet_loss_tool_ = param.decoder_param.enable_packet_loss_tool;
+    packet_loss_tool_ = false;// param.decoder_param.enable_packet_loss_tool;
     /***********************************************************************************/ 
     return true;
   }
@@ -89,6 +91,7 @@ public:
   }
   // start process thread
   void Start() {
+    std::cout << "start called\n";
     runing_thread_ptr_ = new boost::thread(boost::bind(&HesaiLidarSdk::Run, this));  
   }
 
@@ -102,40 +105,56 @@ public:
     uint32_t start = GetMicroTickCount();
     UdpPacket packet;
     FaultMessageInfo fault_message_info;
+    
     while (is_thread_runing_) {
 
+      //std::cout << "thread running\n";
+      //LogInfo("thread running\n");
+      
       //get one packte from origin_packets_buffer_, which receive data from upd or pcap thread
       int ret = lidar_ptr_->GetOnePacket(packet);
       if (ret == -1) continue;
+
+      // LogInfo("get packet from pcap thread running\n");
       
       //get fault message
       if (packet.packet_len == kFaultMessageLength) {
         FaultMessageCallback(packet, fault_message_info);
+        // std::cout << "FaultMessageCallback\n";
         continue;
       }
 
+
       //get distance azimuth reflection, etc.and put them into decode_packet
       lidar_ptr_->DecodePacket(decoded_packet, packet);
+      // std::cout << "DecodedPacket\n";
 
-      //do not compute xyzi of points if enable packet_loss_tool_
-      if(packet_loss_tool_ == true) continue;
+      // //do not compute xyzi of points if enable packet_loss_tool_
+      // if(packet_loss_tool_ == true) continue;
 
       //one frame is receive completely, split frame
       if(decoded_packet.scan_complete) {
+        // std::cout << "SCAN COMPLETE\n";
         //waiting for parser thread compute xyzi of points in the same frame
         while(!lidar_ptr_->ComputeXYZIComplete(decoded_packet.packet_index)) std::this_thread::sleep_for(std::chrono::microseconds(100));
         uint32_t end =  GetMicroTickCount();
         //log info, display frame message
         if (lidar_ptr_->frame_.points_num > kMinPointsOfOneFrame) {
+          // std::cout << " lidar_ptr_->frame_.points_num "<< lidar_ptr_->frame_.points_num << std::endl;
           // LogInfo("frame:%d   points:%u  packet:%d  time:%lf %lf\n",lidar_ptr_->frame_.frame_index,  lidar_ptr_->frame_.points_num, packet_index, lidar_ptr_->frame_.points[0].timestamp, lidar_ptr_->frame_.points[lidar_ptr_->frame_.points_num - 1].timestamp) ;
           
           //publish point cloud topic
           if(point_cloud_cb_) point_cloud_cb_(lidar_ptr_->frame_);
 
+
+          //my_cb_();
+
           //publish upd packet topic
           if(pkt_cb_) pkt_cb_(udp_packet_frame, lidar_ptr_->frame_.points[0].timestamp);
         }
 
+        // std::cout << "lidar_ptr_->frame_.Update();\n";
+        
         //reset frame variable
         lidar_ptr_->frame_.Update();
 
@@ -153,10 +172,20 @@ public:
       }
       else {
         //new decoded packet of one frame, put it into decoded_packets_buffer_ and compute xyzi of points
+        
         decoded_packet.packet_index = packet_index;
+        // printf("about to compute ComputeXYZI\n");
         lidar_ptr_->ComputeXYZI(decoded_packet);
+        // printf("ComputeXYZI\n");
         udp_packet_frame.emplace_back(packet);
+
+        //lidar_ptr_->computeDecodedXYZI();
+
         packet_index++;
+        // std::cout << "packet_index: " << packet_index << std::endl;
+
+        // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
 
         //update status manually if start a new frame failedly
         if (packet_index >= kMaxPacketNumPerFrame) {
@@ -176,6 +205,14 @@ public:
   // assign callback fuction
   void RegRecvCallback(const std::function<void(const UdpFrame_t&, double)>& callback) {
     pkt_cb_ = callback;
+  }
+
+  // assign callback fuction
+  void RegRecvCallback2(const std::function<void()>& callback) {
+    //pkt_cb_ = callback;
+    my_cb_ = callback;
+    //my_cb_();
+    std::cout << "loaded" << std::endl;
   }
 
   //parsar fault message

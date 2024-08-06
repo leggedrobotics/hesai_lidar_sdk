@@ -47,6 +47,7 @@ Udp6_1Parser<T_Point>::~Udp6_1Parser() { printf("release general parser\n"); }
 
 template<typename T_Point>
 int Udp6_1Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDecodedPacket<T_Point> &packet) {
+  // printf("Udp6_1Parser ComputeXYZI\n");
   for (int blockid = 0; blockid < packet.block_num; blockid++) {
     T_Point point;
     int elevation = 0;
@@ -85,6 +86,7 @@ int Udp6_1Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarD
       setRing(frame.points[point_index], i);
     }
   }
+  // std::cout << "packet.points_num " << packet.points_num << " end\n";
   frame.points_num += packet.points_num;
   frame.packet_num = packet.packet_index;
   return 0;
@@ -92,6 +94,7 @@ int Udp6_1Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarD
 
 template<typename T_Point>
 int Udp6_1Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, const UdpPacket& udpPacket) {
+  // std::cout << "DecodePacket Udp6_1Parser\n";
   if (udpPacket.buffer[0] != 0xEE || udpPacket.buffer[1] != 0xFF ) {
     return -1;
   }
@@ -170,6 +173,8 @@ int Udp6_1Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
       output.scan_complete = true;
     }
     this->last_azimuth_ = u16Azimuth;
+
+    // std::cout << "output.scan_complete " << output.scan_complete << " end\n";
 
   }
   return 0;

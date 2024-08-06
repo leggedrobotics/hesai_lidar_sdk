@@ -146,6 +146,10 @@ int Lidar<T_Point>::Init(const DriverParam& param) {
     double time_interval = 0;
     UdpPacket udp_packet;
     LidarDecodedPacket<T_Point> decoded_packet;
+    std::cout << "Waiting for the first packet to initialize the parser..." << std::endl;
+
+    // previously commented
+
     start_time = clock();
     while (udp_parser_->GetParser() == nullptr) {
       int ret = this->GetOnePacket(udp_packet);
@@ -154,9 +158,14 @@ int Lidar<T_Point>::Init(const DriverParam& param) {
       end_time = clock();
       time_interval = double(end_time-start_time) / CLOCKS_PER_SEC;
     }
+
+
+
     if (udp_parser_->GetParser() == nullptr) {
+      std::cout << "udp_parser_->GetParser() == nullptr" << std::endl;
       return res;
     }
+    
     switch (param.input_param.source_type)
     {
     case 1:
@@ -298,6 +307,11 @@ int Lidar<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const UdpPac
 
 template <typename T_Point>
 bool Lidar<T_Point>::ComputeXYZIComplete(int index) {
+  // std::cout << "Are you serious? " << std::endl;
+
+  // // print packet_num and index
+  // std::cout << "frame_.packet_num: " << frame_.packet_num << std::endl;
+  // std::cout << "index: " << index << std::endl;
   return frame_.packet_num == index;
 }
 
@@ -379,7 +393,7 @@ void Lidar<T_Point>::RecieveUdpThread() {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     if (source_ == nullptr) {
@@ -426,6 +440,34 @@ void Lidar<T_Point>::RecieveUdpThread() {
 }
 
 template <typename T_Point>
+void Lidar<T_Point>::computeDecodedXYZI(){
+
+if (!udp_parser_) {
+  std::cout << "No UDP parser\n";
+  return;
+}
+
+if (udp_parser_->GetParser() == nullptr) {
+
+  std::cout << "udp_parser_->GetParser() == nullptr\n";
+  return;
+}
+
+LidarDecodedPacket<T_Point> decoded_packet;
+
+if (!decoded_packets_buffer_.try_pop_front(decoded_packet))
+{
+  std::cout << "No packet IN decoded_packets_buffer_\n";
+  return;
+}
+
+  std::cout << "About to call\n";
+  int res = udp_parser_->ComputeXYZI(frame_, decoded_packet);
+  std::cout << "Called\n";
+
+}
+
+template <typename T_Point>
 void Lidar<T_Point>::ParserThread() {
   if(!parser_thread_running_) return;
   int nUDPCount = 0;
@@ -433,13 +475,21 @@ void Lidar<T_Point>::ParserThread() {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     LidarDecodedPacket<T_Point> decoded_packet;
     decoded_packets_buffer_.try_pop_front(decoded_packet);
     if (handle_thread_count_ < 2) {
+      // /std::cout << "handle_thread_count_ < 2\n";
+      //std::this_thread::sleep_for(std::chrono::microseconds(100));
+      // {
+      //   nUDPCount = nUDPCount % handle_thread_count_;
+      //   mutex_list_[nUDPCount].lock();
       udp_parser_->ComputeXYZI(frame_, decoded_packet);
+      // }
+      //std::this_thread::sleep_for(std::chrono::microseconds(100));
+      //std::cout << "udp_parser_->ComputeXYZI\n";
       continue;
     } else {
       nUDPCount = nUDPCount % handle_thread_count_;
@@ -462,7 +512,7 @@ void Lidar<T_Point>::HandleThread(int nThreadNum) {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   if(!parser_thread_running_) return;
   while (running_) {
