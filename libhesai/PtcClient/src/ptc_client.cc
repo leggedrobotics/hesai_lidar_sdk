@@ -59,7 +59,9 @@ PtcClient::PtcClient(std::string ip
                     , uint8_t ptc_version
                     , const char* cert
                     , const char* private_key
-                    , const char* ca)
+                    , const char* ca
+                    , uint32_t u32RecvTimeoutMs
+                    , uint32_t u32SendTimeoutMs)
   : client_mode_(client_mode)
   , ptc_version_(ptc_version) {
   std::cout << "PtcClient::PtcClient()" << ip.c_str()
@@ -71,6 +73,11 @@ PtcClient::PtcClient(std::string ip
   } else if(client_mode == PtcMode::tcp_ssl) {
     client_ = std::make_shared<TcpSslClient>();
     client_->Open(ip, u16TcpPort, bAutoReceive, cert, private_key, ca);
+  }
+  if (u32RecvTimeoutMs != 0 && u32SendTimeoutMs != 0) {
+    std::cout << "u32RecvTimeoutMs " << u32RecvTimeoutMs << std::endl;
+    std::cout << "u32SendTimeoutMs " << u32SendTimeoutMs << std::endl;    
+    client_->SetTimeout(u32RecvTimeoutMs, u32SendTimeoutMs);
   }
 
   // init ptc parser
@@ -88,7 +95,7 @@ bool PtcClient::IsValidRsp(u8Array_t &byteStreamIn) {
     byteStreamIn.erase(byteStreamIn.begin());
   }
   //输入数据长度小于头长度 没有数据
-  if (byteStreamIn.size() < ptc_parser_->GetPtcParserHeaderSize()) ret = false;
+  if (byteStreamIn.size() < (size_t)ptc_parser_->GetPtcParserHeaderSize()) ret = false;
 
   if (ret) {
     if(ptc_version_ == 1) {
@@ -110,7 +117,7 @@ void PtcClient::TcpFlushIn() {
     len = client_->Receive(u8Buf.data(), u8Buf.size(), MSG_DONTWAIT);
     if (len > 0) {
       std::cout << "TcpFlushIn, len" << len << std::endl;
-      for(int i = 0; i<u8Buf.size(); i++) {
+      for(size_t i = 0; i<u8Buf.size(); i++) {
         printf("%x ", u8Buf[i]);
       }
     }
@@ -127,7 +134,7 @@ int PtcClient::QueryCommand(u8Array_t &byteStreamIn,
   // TcpFlushIn();
 
   int nLen = client_->Send(encoded.data(), encoded.size());
-  if (nLen != encoded.size()) {
+  if (nLen != (int)encoded.size()) {
     // qDebug("%s: send failure, %d.", __func__, nLen);
     ret = -1;
   }
@@ -156,7 +163,7 @@ int PtcClient::QueryCommand(u8Array_t &byteStreamIn,
               pRecvHeaderBuf[i + 1] == ptc_parser_->GetHeaderIdentifier1()) {
             nValidDataLen = nOnceRecvLen - i;
             bHeaderFound = true;
-            std::memcpy(pHeaderBuf, pRecvHeaderBuf + i, nValidDataLen);
+            memcpy(pHeaderBuf, pRecvHeaderBuf + i, nValidDataLen);
             //剩下还需接收的长度
             nLeft -= nValidDataLen;
             break;
@@ -164,7 +171,7 @@ int PtcClient::QueryCommand(u8Array_t &byteStreamIn,
         }
       } else {
         //已经收到PTC正确的头部 只是还没有达到8位
-        std::memcpy(pHeaderBuf + nValidDataLen, pRecvHeaderBuf, nOnceRecvLen);
+        memcpy(pHeaderBuf + nValidDataLen, pRecvHeaderBuf, nOnceRecvLen);
         nValidDataLen += nOnceRecvLen;
         nLeft -= nOnceRecvLen;
       }
@@ -228,7 +235,7 @@ int PtcClient::QueryCommand(u8Array_t &byteStreamIn,
       //将收到的bodyBuf拷贝到最终要传出的buf
       byteStreamOut.resize(nPayLoadLen);
       pBodyBuf = u8BodyBuf.data();
-      std::memcpy(byteStreamOut.data(), pBodyBuf, nPayLoadLen);
+      memcpy(byteStreamOut.data(), pBodyBuf, nPayLoadLen);
     }
   }
 
@@ -272,6 +279,92 @@ u8Array_t PtcClient::GetCorrectionInfo() {
   }
 
   return dataOut;
+}
+
+template <typename T>
+T extractField(const u8Array_t& data, size_t& offset) {
+    T field = 0;
+    for (size_t i = 0; i < sizeof(T); ++ i) {
+        field = (field << 8) | data[offset++];
+    }
+    return field;
+}
+
+int PtcClient::GetPTPDiagnostics (u8Array_t &dataOut, uint8_t query_type) {
+  u8Array_t dataIn;
+  dataIn.push_back(query_type);
+  int ret = -1;
+  ret = this->QueryCommand(dataIn, dataOut,
+                           kPTCGetPTPDiagnostics);
+
+  if (ret == 0 && !dataOut.empty()) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+int PtcClient::GetPTPLockOffset(u8Array_t &dataOut)
+{
+  u8Array_t dataIn;
+  int ret = -1;
+  ret = this->QueryCommand(dataIn, dataOut,
+                           kPTCGetPTPLockOffset);
+  if (ret == 0 && !dataOut.empty()) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+int PtcClient::GetLidarStatus() {
+  u8Array_t dataIn, dataOut;
+  int ret = -1;
+  ret = this->QueryCommand(dataIn, dataOut, 
+                           kPTCGetLidarStatus);
+  if (ret == 0 && !dataOut.empty()) {
+    // according XT32M1X_TCP_API.pdf
+    uint32_t systemp_uptime;
+    uint16_t motor_speed;
+    uint32_t temperature[8];
+    uint8_t gps_pps_lock;
+    uint8_t gps_gprmc_status;
+    uint32_t startup_times;
+    uint32_t total_operation_time;
+    uint8_t ptp_status;
+
+    size_t offset = 0;
+    systemp_uptime = extractField<uint32_t>(dataOut, offset);
+    motor_speed = extractField<uint16_t>(dataOut, offset);
+    for (int i = 0; i < 8; i ++ ) {
+      temperature[i] = extractField<uint32_t>(dataOut, offset);
+    }
+    gps_pps_lock = extractField<uint8_t>(dataOut, offset);
+    gps_gprmc_status = extractField<uint8_t>(dataOut, offset);
+    startup_times = extractField<uint32_t>(dataOut, offset);
+    total_operation_time = extractField<uint32_t>(dataOut, offset);
+    ptp_status = extractField<uint8_t>(dataOut, offset);
+    printf("System uptime: %u second, Real-time motor speed: %u RPM\n"
+           "----------Temperature(0.01 Celsius)-----------\n"
+           "Bottom circuit board T1: %u\n"
+           "Bottom circuit board T2: %u\n"
+           "Laser emitting board RT_L1: %u\n"
+           "Laser emitting board RT_L2: %u\n"
+           "Laser Receiving board RT_R: %d\n"
+           "Laser Receiving board RT2: %d\n"
+           "Top circuit RT3: %u\n"
+           "Top circuit RT4: %u\n"
+           "GPS PPS status: %u, GPS NMEA status: %u\n"
+           "System start-up times: %u, Total time in operation: %u\n"
+           "PTP status: %u\n"
+    , systemp_uptime, motor_speed, temperature[0], temperature[1],temperature[2], temperature[3],
+    temperature[4], temperature[5], temperature[6], temperature[7], gps_pps_lock, gps_gprmc_status,
+    startup_times, total_operation_time, ptp_status);
+    printf("Lidar Status Size: %ld\n", offset);
+    return 0;
+  } else {
+    return -1;
+  }
 }
 
 int PtcClient::GetCorrectionInfo(u8Array_t &dataOut) {
@@ -318,6 +411,105 @@ int PtcClient::SetSocketTimeout(uint32_t u32RecMillisecond,
   return client_->SetTimeout(u32RecMillisecond, u32SendMillisecond);
 }
 
+bool PtcClient::SetNet(std::string IP, std::string mask, std::string getway, uint8_t vlan_flag, uint16_t vlan_ID)
+{
+  u8Array_t input, output;
+  std::stringstream Ip(IP);
+  std::stringstream Mask(mask);
+  std::stringstream GetWay(getway);
+  std::string byte;
+  while (std::getline(Ip, byte, '.')) {
+    input.push_back(static_cast<uint8_t>(std::stoi(byte)));
+  }
+  while (std::getline(Mask, byte, '.')) {
+    input.push_back(static_cast<uint8_t>(std::stoi(byte)));
+  }
+  while (std::getline(GetWay, byte, '.')) {
+    input.push_back(static_cast<uint8_t>(std::stoi(byte)));
+  }
+  input.push_back(vlan_flag);
+  input.push_back(static_cast<uint8_t>(vlan_ID >> 8));
+  input.push_back(static_cast<uint8_t>(vlan_ID >> 0));
+  return this->QueryCommand(input, output, kPTCSetNet);
+}
+
+bool PtcClient::SetDesIpandPort(std::string des, uint16_t port, uint16_t GPS_port)
+{
+  u8Array_t input, output;
+  std::stringstream Des(des);
+  std::string byte;
+  while (std::getline(Des, byte, '.')) {
+    input.push_back(static_cast<uint8_t>(std::stoi(byte)));
+  }
+  input.push_back(static_cast<uint8_t>(port >> 8));
+  input.push_back(static_cast<uint8_t>(port >> 0));
+  input.push_back(static_cast<uint8_t>(GPS_port >> 8));
+  input.push_back(static_cast<uint8_t>(GPS_port >> 0));
+  return this->QueryCommand(input, output, kPTCSetDestinationIPandPort);
+}
+
+bool PtcClient::SetReturnMode(uint8_t return_mode)
+{
+  u8Array_t input, output;
+  input.push_back(return_mode);
+  return this->QueryCommand(input, output, kPTCSetReturnMode);
+}
+
+bool PtcClient::SetSyncAngle(uint8_t enable_flag, uint16_t sync_angle)
+{
+  u8Array_t input, output;
+  input.push_back(enable_flag);
+  input.push_back(static_cast<uint8_t>(sync_angle >> 8));
+  input.push_back(static_cast<uint8_t>(sync_angle >> 0));
+  return this->QueryCommand(input, output, kPTCSetSyncAngle);
+}
+
+bool PtcClient::SetTmbFPGARegister(uint32_t address, uint32_t data)
+{
+  u8Array_t input, output;
+  input.push_back(static_cast<uint8_t>(kPTCSetTemFpgaRegister >> 24));
+  input.push_back(static_cast<uint8_t>(kPTCSetTemFpgaRegister >> 16));
+  input.push_back(static_cast<uint8_t>(kPTCSetTemFpgaRegister >> 8));
+  input.push_back(static_cast<uint8_t>(kPTCSetTemFpgaRegister >> 0));
+  input.push_back(static_cast<uint8_t>(address >> 24));
+  input.push_back(static_cast<uint8_t>(address >> 16));
+  input.push_back(static_cast<uint8_t>(address >> 8));
+  input.push_back(static_cast<uint8_t>(address >> 0));
+  input.push_back(static_cast<uint8_t>(data >> 24));
+  input.push_back(static_cast<uint8_t>(data >> 16));
+  input.push_back(static_cast<uint8_t>(data >> 8));
+  input.push_back(static_cast<uint8_t>(data >> 0));
+  return this->QueryCommand(input, output, 0xff);
+}
+
+bool PtcClient::SetFPGARegister(uint32_t address, uint32_t data)
+{
+  u8Array_t input, output;
+  input.push_back(static_cast<uint8_t>(address >> 24));
+  input.push_back(static_cast<uint8_t>(address >> 16));
+  input.push_back(static_cast<uint8_t>(address >> 8));
+  input.push_back(static_cast<uint8_t>(address >> 0));
+  input.push_back(static_cast<uint8_t>(data >> 24));
+  input.push_back(static_cast<uint8_t>(data >> 16));
+  input.push_back(static_cast<uint8_t>(data >> 8));
+  input.push_back(static_cast<uint8_t>(data >> 0));
+  return this->QueryCommand(input, output, kPTCSetFpgaRegister);
+}
+
+bool PtcClient::SetStandbyMode(uint32_t standby_mode)
+{
+  u8Array_t input1, output1;
+  input1.push_back(static_cast<uint8_t>(standby_mode));
+  return this->QueryCommand(input1, output1, kPTCSetStandbyMode);
+}
+
+bool PtcClient::SetSpinSpeed(uint32_t speed)
+{
+  u8Array_t input2, output2;
+  input2.push_back(static_cast<uint8_t>(speed >> 8));
+  input2.push_back(static_cast<uint8_t>(speed >> 0));
+  return this->QueryCommand(input2, output2, kPTCSetSpinSpeed);
+}
 
 void PtcClient::CRCInit() {
   uint32_t i, j, k;
@@ -334,7 +526,7 @@ void PtcClient::CRCInit() {
 uint32_t PtcClient::CRCCalc(uint8_t *bytes, int len) {
   uint32_t i_crc = 0xffffffff;
   int i = 0;
-  for (i = 0; (size_t)i < len; i++)
+  for (i = 0; i < len; i++)
     i_crc = (i_crc << 8) ^ m_CRCTable[((i_crc >> 24) ^ bytes[i]) & 0xff];
   return i_crc;
 }

@@ -115,7 +115,6 @@ void UdpParser<T_Point>::CreatGeneralParser(uint8_t major, uint8_t minor) {
           parser_ = new Udp1_4Parser<T_Point>();
           lidar_type_decoded_ = "Pandar128";
           break;
-
         default:
           break;
       }
@@ -319,8 +318,7 @@ template<typename T_Point>
 int UdpParser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDecodedPacket<T_Point> &packet) {
   if (parser_ == nullptr) {
     return -1;
-  }
-  if (parser_ != nullptr) {
+  } else {
     return parser_->ComputeXYZI(frame, packet);
   }
 }

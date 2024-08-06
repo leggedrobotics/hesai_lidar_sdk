@@ -40,7 +40,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ptc_client.h"
 #include <iostream>
 #include <vector>
-#include <boost/thread/thread.hpp>
+#include <thread>
 #include "tcp_client.h"
 #include "udp_parser.h"
 #include "pcap_source.h"
@@ -60,7 +60,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define AT128E2X_PACKET_LEN (1180)
 #define FAULTMESSAGE_PACKET_LEN (99)
 #define GPS_PACKET_LEN (512)
-
+#define CMD_SET_STANDBY_MODE (0x1c)
+#define CMD_SET_SPIN_SPEED (0x17)
 
 namespace hesai
 {
@@ -125,11 +126,23 @@ public:
   void SetThreadNum(int thread_num);
   void SetSource(Source **source);
   std::string GetLidarType();
+  // get pcap status
+  bool IsPlayEnded();
+  // set standby mode
+  int SetStandbyMode(PtcClient *Ptc_client, int standby_mode);
+  // set spin speed
+  int SetSpinSpeed(PtcClient *Ptc_client, int speed);
+  // load correction file from Ros bag 
+  int LoadCorrectionFromROSbag();
   UdpParser<T_Point> *udp_parser_;
   Source *source_;
   PtcClient *ptc_client_;
   LidarDecodedFrame<T_Point> frame_;
   BlockingRing<UdpPacket, kPacketBufferSize> origin_packets_buffer_;
+  uint16_t use_timestamp_type_ = 0;
+  int fov_start_ = 0;
+  int fov_end_ = 0;
+  u8Array_t correction_string_;
 
 private:
   uint16_t ptc_port_;
@@ -151,11 +164,11 @@ private:
   bool udp_thread_running_;
   // this variable decide whether parser_thread will run
   bool parser_thread_running_;
-  boost::thread *recieve_packet_thread_ptr_;
-  boost::thread *parser_thread_ptr_;
-  boost::mutex *mutex_list_;
+  std::thread *recieve_packet_thread_ptr_;
+  std::thread *parser_thread_ptr_;
+  std::mutex *mutex_list_;
   std::vector<std::list<LidarDecodedPacket<T_Point>>> handle_thread_packet_buffer_;
-  std::vector<boost::thread *> handle_thread_vec_;
+  std::vector<std::thread *> handle_thread_vec_;
   uint32_t handle_buffer_size_;
   int handle_thread_count_;
   bool is_record_pcap_;

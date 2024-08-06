@@ -68,10 +68,10 @@ int GeneralParserGpu<T_Point>::LoadCorrectionString(char *correction_content) {
 
   std::getline(ifs, line);  // skip first line "Laser id,Elevation,Azimuth" or "eeff"
 
-  float elevation_list[MAX_LASER_NUM], azimuth_list[MAX_LASER_NUM];
+  // float elevation_list[MAX_LASER_NUM], azimuth_list[MAX_LASER_NUM];
 
   std::vector<std::string> vfirstLine;
-  boost::split(vfirstLine, line, boost::is_any_of(","));
+  split_string(vfirstLine, line, ',');
   if (vfirstLine[0] == "EEFF" || vfirstLine[0] == "eeff") {
     std::getline(ifs, line);  // skip second line
   }
@@ -79,7 +79,7 @@ int GeneralParserGpu<T_Point>::LoadCorrectionString(char *correction_content) {
   int lineCount = 0;
   while (std::getline(ifs, line)) {
     std::vector<std::string> vLineSplit;
-    boost::split(vLineSplit, line, boost::is_any_of(","));
+    split_string(vLineSplit, line, ',');
     if (vLineSplit.size() < 3) {  // skip error line or hash value line
       continue;
     } else {
@@ -102,8 +102,8 @@ int GeneralParserGpu<T_Point>::LoadCorrectionString(char *correction_content) {
                   << laserId << ", line" << lineCount << std::endl;
       return -1;
     }
-    elevation_list[laserId - 1] = elevation;
-    azimuth_list[laserId - 1] = azimuth;
+    // elevation_list[laserId - 1] = elevation;
+    // azimuth_list[laserId - 1] = azimuth;
   }
   // this->elevation_correction_.resize(lineCount);
   // this->azimuth_collection_.resize(lineCount);

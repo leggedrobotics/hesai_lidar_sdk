@@ -94,12 +94,7 @@ int Udp4_3Parser<T_Point>::LoadCorrectionString(char *data) {
           memcpy((void *)&m_PandarAT_corrections.end_frame, p,
                  sizeof(uint16_t) * frame_num);
           p += sizeof(uint16_t) * frame_num;
-          // printf("frame_num: %d\n", frame_num);
-          // printf("start_frame, end_frame: \n");
           for (int i = 0; i < frame_num; ++i)
-            // printf("%lf,   %lf\n",
-            //        m_PandarAT_corrections.start_frame[i] / kResolutionFloat,
-            //        m_PandarAT_corrections.end_frame[i] / kResolutionFloat);
           memcpy((void *)&m_PandarAT_corrections.azimuth, p,
                  sizeof(int16_t) * channel_num);
           p += sizeof(int16_t) * channel_num;
@@ -145,8 +140,6 @@ int Udp4_3Parser<T_Point>::LoadCorrectionString(char *data) {
           memcpy((void *)&m_PandarAT_corrections.SHA256, p,
                  sizeof(uint8_t) * 32);
           p += sizeof(uint8_t) * 32;
-          // printf("frame_num: %d\n", frame_num);
-          // printf("start_frame, end_frame: \n");
           for (int i = 0; i < frame_num; ++i) {
             m_PandarAT_corrections.l.start_frame[i] =
                 m_PandarAT_corrections.l.start_frame[i] *
@@ -154,9 +147,6 @@ int Udp4_3Parser<T_Point>::LoadCorrectionString(char *data) {
             m_PandarAT_corrections.l.end_frame[i] =
                 m_PandarAT_corrections.l.end_frame[i] *
                 m_PandarAT_corrections.header.resolution;
-            // printf("%lf,   %lf\n",
-            //        m_PandarAT_corrections.l.start_frame[i] / AZIMUTH_UNIT,
-            //        m_PandarAT_corrections.l.end_frame[i] / AZIMUTH_UNIT);
           }
           for (int i = 0; i < AT128_LASER_NUM; i++) {
             m_PandarAT_corrections.l.azimuth[i] =
@@ -174,7 +164,6 @@ int Udp4_3Parser<T_Point>::LoadCorrectionString(char *data) {
                 m_PandarAT_corrections.elevation_offset[i] *
                 m_PandarAT_corrections.header.resolution;
           }
-
           this->get_correction_file_ = true;
           return 0;
         } break;
@@ -182,13 +171,11 @@ int Udp4_3Parser<T_Point>::LoadCorrectionString(char *data) {
           break;
       }
     }
-
     return -1;
   } catch (const std::exception &e) {
     std::cerr << e.what() << '\n';
     return -1;
   }
-
   return -1;
 }
 
@@ -210,7 +197,6 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
       }
     }
   }
-
   if (udpPacket.buffer[0] != 0xEE || udpPacket.buffer[1] != 0xFF ) {
     output.scan_complete = false;
     output.points_num = 0;
@@ -249,8 +235,14 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
     }
   }      
   output.host_timestamp = GetMicroTickCountU64();  
-  output.sensor_timestamp = pTail->GetMicroLidarTimeU64();
-  if(this->enable_packet_loss_tool_ == true) return 0;
+  if (output.use_timestamp_type == 0) {
+    output.sensor_timestamp = pTail->GetMicroLidarTimeU64();
+  } else {
+    output.sensor_timestamp = udpPacket.recv_timestamp;
+    // printf("udpPacket.recv_timestamp %lu, %lu\n", pTail->GetMicroLidarTimeU64(), udpPacket.recv_timestamp);
+  }
+
+  // if(this->enable_packet_loss_tool_ == true) return 0;
 
   this->spin_speed_ = pTail->GetMotorSpeed();
   this->is_dual_return_= pTail->IsDualReturn();
@@ -309,10 +301,11 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
     }
 
     if (this->use_angle_ && IsNeedFrameSplit(u16Azimuth, field)) {
-      // 未置true会一直显示loading，几秒后超时退出崩溃
       output.scan_complete = true;
+      // printf("IsNeedFrameSplit %d %d\n", u16Azimuth, this->last_azimuth_);
     }
     this->last_azimuth_ = u16Azimuth;
+    // printf("%d, %u, %d\n", this->current_seqnum_, u16Azimuth, this->last_azimuth_);
   }
   return 0;
 }
@@ -331,7 +324,6 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const
       }
     }
   }
-
   if (udpPacket.buffer[0] != 0xEE || udpPacket.buffer[1] != 0xFF ) {
     printf("Udp4_3Parser: DecodePacket, invalid packet %x %x\n", udpPacket.buffer[0], udpPacket.buffer[1]);
     return -1;
@@ -348,28 +340,25 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const
            sizeof(HS_LIDAR_BODY_CHN_NNIT_ST_V3) * pHeader->GetLaserNum()) *
               pHeader->GetBlockNum() +
           sizeof(HS_LIDAR_BODY_CRC_ST_V3));
-  if (pHeader->HasSeqNum()) {
-    const HS_LIDAR_TAIL_SEQ_NUM_ST_V3 *pTailSeqNum =
-        reinterpret_cast<const HS_LIDAR_TAIL_SEQ_NUM_ST_V3 *>(
-            (const unsigned char *)pHeader + sizeof(HS_LIDAR_HEADER_ST_V3) +
-            (sizeof(HS_LIDAR_BODY_AZIMUTH_ST_V3) +
-             sizeof(HS_LIDAR_BODY_FINE_AZIMUTH_ST_V3) +
-             sizeof(HS_LIDAR_BODY_CHN_NNIT_ST_V3) * pHeader->GetLaserNum()) *
-                pHeader->GetBlockNum() +
-            sizeof(HS_LIDAR_BODY_CRC_ST_V3) + sizeof(HS_LIDAR_TAIL_ST_V3));      
-    // pTailSeqNum->CalPktLoss(this->start_seqnum_, this->last_seqnum_, this->loss_count_, this->start_time_);
-  }        
+  // if (pHeader->HasSeqNum()) {
+  //   const HS_LIDAR_TAIL_SEQ_NUM_ST_V3 *pTailSeqNum =
+  //       reinterpret_cast<const HS_LIDAR_TAIL_SEQ_NUM_ST_V3 *>(
+  //           (const unsigned char *)pHeader + sizeof(HS_LIDAR_HEADER_ST_V3) +
+  //           (sizeof(HS_LIDAR_BODY_AZIMUTH_ST_V3) +
+  //            sizeof(HS_LIDAR_BODY_FINE_AZIMUTH_ST_V3) +
+  //            sizeof(HS_LIDAR_BODY_CHN_NNIT_ST_V3) * pHeader->GetLaserNum()) *
+  //               pHeader->GetBlockNum() +
+  //           sizeof(HS_LIDAR_BODY_CRC_ST_V3) + sizeof(HS_LIDAR_TAIL_ST_V3));      
+  // }        
   this->spin_speed_ = pTail->m_i16MotorSpeed;
   this->is_dual_return_= pTail->IsDualReturn();
   frame.laser_num = pHeader->GetBlockNum();
   frame.block_num = pHeader->GetLaserNum();
   frame.points_num += pHeader->GetBlockNum() * pHeader->GetLaserNum();
-  // 不填则仅显示很小一部分点云
   frame.scan_complete = false;
-
   int index = frame.packet_index * pHeader->GetBlockNum() * pHeader->GetLaserNum();
-  float minAzimuth = 0;
-  float maxAzimuth = 0;
+  // float minAzimuth = 0;
+  // float maxAzimuth = 0;
   const HS_LIDAR_BODY_AZIMUTH_ST_V3 *pAzimuth =
       reinterpret_cast<const HS_LIDAR_BODY_AZIMUTH_ST_V3 *>(
           (const unsigned char *)pHeader + sizeof(HS_LIDAR_HEADER_ST_V3));
@@ -389,7 +378,6 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const
     pChnUnit = reinterpret_cast<const HS_LIDAR_BODY_CHN_NNIT_ST_V3 *>(
         (const unsigned char *)pAzimuth + sizeof(HS_LIDAR_BODY_AZIMUTH_ST_V3) +
         sizeof(HS_LIDAR_BODY_FINE_AZIMUTH_ST_V3));
-
     // point to next block azimuth addr
     pAzimuth = reinterpret_cast<const HS_LIDAR_BODY_AZIMUTH_ST_V3 *>(
         (const unsigned char *)pAzimuth + sizeof(HS_LIDAR_BODY_AZIMUTH_ST_V3) +
@@ -415,8 +403,8 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const
       frame.scan_complete = true;
     }
     this->last_azimuth_ = u16Azimuth;
-    if(blockid  == 0 ) minAzimuth =  azimuth;
-    else maxAzimuth = azimuth;
+    // if(blockid  == 0 ) minAzimuth =  azimuth;
+    // else maxAzimuth = azimuth;
     
   }
   frame.packet_index++;
@@ -426,7 +414,7 @@ int Udp4_3Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const
 template<typename T_Point>
 int Udp4_3Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDecodedPacket<T_Point> &packet){
   for (int blockid = 0; blockid < packet.block_num; blockid++) {
-    T_Point point;
+    // T_Point point;
     int Azimuth = packet.azimuth[blockid * packet.laser_num];
     int count = 0, field = 0;
     if ( this->get_correction_file_) {
@@ -457,7 +445,14 @@ int Udp4_3Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarD
                          m_PandarAT_corrections.l.azimuth[i] +
                          m_PandarAT_corrections.GetAzimuthAdjustV3(i, Azimuth) * FINE_AZIMUTH_UNIT);
         azimuth = (MAX_AZI_LEN + azimuth) % MAX_AZI_LEN;
-      }      
+      }
+      if (packet.config.fov_start != -1 && packet.config.fov_end != -1)
+      {
+        int fov_transfer = azimuth / 256 / 100;
+        if (fov_transfer < packet.config.fov_start || fov_transfer > packet.config.fov_end){//不在fov范围continue
+          continue;
+        }
+      }
       float xyDistance = distance * m_PandarAT_corrections.cos_map[(elevation)];
       float x = xyDistance * m_PandarAT_corrections.sin_map[(azimuth)];
       float y = xyDistance * m_PandarAT_corrections.cos_map[(azimuth)];
@@ -482,7 +477,6 @@ int16_t Udp4_3Parser<T_Point>::GetVecticalAngle(int channel) {
     printf ("GetVecticalAngle: no correction file get, Error");
     return -1;
   }
-
   return m_PandarAT_corrections.elevation[channel];
 }
 

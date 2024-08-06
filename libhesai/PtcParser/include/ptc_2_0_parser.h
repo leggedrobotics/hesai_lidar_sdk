@@ -29,7 +29,6 @@
 #ifndef PTC_2_0_PARSER_H_
 #define PTC_2_0_PARSER_H_
 #ifdef _MSC_VER
-#include <boost/endian/conversion.hpp>
 #endif
 #include <iostream>
 #include <fstream>
@@ -85,13 +84,9 @@ struct PTCHeader_2_0 {
   uint8_t GetIdentifier1() { return identifier1_; }
   uint8_t GetReturnCode() const { return return_code_; }
   uint8_t GetCmd() const {return cmd_; }
-#ifdef _MSC_VER
-  uint32_t GetPayloadLen() const { return boost::endian::big_to_native(payload_len_); }
-  void SetPayloadLen(uint32_t u32Len) { payload_len_ = boost::endian::native_to_big(u32Len); }
-#else
-  uint32_t GetPayloadLen() const { return be32toh(payload_len_); }
-  void SetPayloadLen(uint32_t u32Len) { payload_len_ = htobe32(u32Len); }
-#endif
+  uint32_t GetPayloadLen() const { return ntohl(payload_len_); }
+  void SetPayloadLen(uint32_t u32Len) { payload_len_ = htonl(u32Len); }
+
 
 } PACKED;
 #ifdef _MSC_VER
