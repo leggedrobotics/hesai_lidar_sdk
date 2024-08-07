@@ -270,8 +270,11 @@ int Lidar<T_Point>::SetLidarType(std::string lidar_type) {
 
 template <typename T_Point>
 int Lidar<T_Point>::GetOnePacket(UdpPacket &packet) {
-  if (origin_packets_buffer_.try_pop_front(packet))  return 0;
-  else  return -1;
+  if (origin_packets_buffer_.try_pop_front(packet)) {
+     return 0;}
+  else {
+     return -1;
+  }
 }
 
 template <typename T_Point>

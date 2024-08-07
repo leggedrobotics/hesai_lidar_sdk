@@ -145,7 +145,7 @@ typedef struct InputParam
   std::string ros_recv_correction_topic = NULL_TOPIC;
   std::string ros_recv_packet_topic = NULL_TOPIC;
 
-  std::string output_rosbag_path = "/tmp/hesaiXT32_data.bag";  
+  std::string output_rosbag_directory = "/tmp/";  
   bool save_replayed_topics_to_rosbag = false;
 
 } InputParam;
