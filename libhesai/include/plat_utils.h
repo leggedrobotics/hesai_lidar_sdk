@@ -15,7 +15,7 @@
 #include <utility>
 #include <thread>
 #include <sstream>
-#define SHED_FIFO_PRIORITY_HIGH 99
+#define SHED_FIFO_PRIORITY_HIGH 90
 #define SHED_FIFO_PRIORITY_MEDIUM 70
 #define SHED_FIFO_PRIORITY_LOW 1
 #define ISO_8601_FORMAT 1

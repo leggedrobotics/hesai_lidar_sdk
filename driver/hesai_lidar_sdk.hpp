@@ -78,6 +78,7 @@ public:
 
   // stop process thread
   void Stop() {
+    std::cout << "Driver Stopping...." << std::endl;
     if (nullptr != runing_thread_ptr_) {
       is_thread_runing_ = false;
       runing_thread_ptr_->join();

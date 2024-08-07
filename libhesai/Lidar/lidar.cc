@@ -414,7 +414,7 @@ void Lidar<T_Point>::RecieveUdpThread() {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     if (source_ == nullptr) {
@@ -467,7 +467,7 @@ void Lidar<T_Point>::ParserThread() {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     LidarDecodedPacket<T_Point> decoded_packet;
@@ -504,7 +504,7 @@ void Lidar<T_Point>::HandleThread(int nThreadNum) {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   if(!parser_thread_running_) return;
   while (running_) {
