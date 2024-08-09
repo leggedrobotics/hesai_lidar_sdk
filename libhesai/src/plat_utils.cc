@@ -33,6 +33,7 @@ static const int kTimeStrLen = 1000;
 #else
 #include <sys/syscall.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 #define gettid() syscall(SYS_gettid)
 #endif
@@ -121,6 +122,25 @@ uint64_t GetMicroTickCountU64() {
   return ret;
 }
 
+uint64_t GetMicroTimeU64() {
+  uint64_t ret = 0;
+#ifdef _MSC_VER
+  FILETIME time;
+  LARGE_INTEGER larger_int;
+  GetSystemTimeAsFileTime(&time);
+  larger_int.LowPart = time.dwLowDateTime;
+  larger_int.HighPart = time.dwHighDateTime;
+  ret = (larger_int.QuadPart - EPOCHFILETIME) / 10;
+#else
+  struct timeval time;
+  memset(&time, 0, sizeof(time));
+  if (gettimeofday(&time, NULL) == 0) {
+    ret = time.tv_usec + time.tv_sec * 1000000;
+  }
+#endif
+  return ret;
+}
+
 int GetAvailableCPUNum() {
 #ifdef _MSC_VER
   SYSTEM_INFO sysInfo;
@@ -144,11 +164,17 @@ int GetAnglesFromFile(
   }
 
   char sContent[255] = {0};
-  fgets(sContent, 255, pFile);  // skip first line
+  if (fgets(sContent, 255, pFile) == NULL) { // skip first line
+    printf("Failed to read from file\n");
+    return 1;
+  } 
 
   while (!feof(pFile)) {
     memset(sContent, 0, 255);
-    fgets(sContent, 255, pFile);
+    if (fgets(sContent, 255, pFile) == NULL) {
+      printf("Failed to read from file\n");
+      return 1;
+    }
 
     if (strlen(sContent) < strlen(" , , ")) {
       break;

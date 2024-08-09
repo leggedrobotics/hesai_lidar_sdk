@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 14)
 PROJECT(Template)
 set(VERSION_MAJOR 2)
 set(VERSION_MINOR 0)
-set(VERSION_TINY  5)
+set(VERSION_TINY  7)
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/Version.h"
@@ -24,12 +24,9 @@ endif()
 
 
 include_directories("${PROJECT_BINARY_DIR}")
-find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 find_package(OpenSSL REQUIRED)
 add_definitions(-DQT_MESSAGELOGCONTEXT)
 add_subdirectory(libhesai)
-
-# set (Boost_INCLUDE_DIRS "/usr/lib/x86_64-linux-gnu/")
 
 include_directories(
   libhesai
@@ -52,39 +49,26 @@ include_directories(
   libhesai/include
   driver
   third_party
-  ${Boost_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIR}
 )
 link_directories(./libhesai/PtcClient/lib)
-link_directories(${Boost_LIBRARY_DIRS})
 
 add_executable(sample
   test/test.cc
 )
 
 target_link_libraries(sample
-  ${Boost_LIBRARIES}
   source_lib
   container_lib
   ptcClient_lib
   ptcParser_lib
   log_lib
-  # ${PCL_LIBRARIES}  
   ${OPENSSL_LIBRARIES}
 )
 
-# add_library(libhesai
-#     driver/hesai_lidar_sdk.hpp
-# )
-# target_link_libraries(libhesai
-#   ${Boost_LIBRARIES}
-#   source_lib
-#   container_lib
-#   ptcClient_lib
-#   log_lib
-  
-# )
-
+# if install different cuda version, set the cuda path, like cuda-11.4
+# set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-11.4/)
+# find_package(CUDA REQUIRED)
 find_package(CUDA )
 if(${CUDA_FOUND})
 	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
@@ -102,14 +86,12 @@ if(${CUDA_FOUND})
   ./test/test.cu
   ./libhesai/UdpParserGpu/src/buffer.cu)
   target_link_libraries(sample_gpu
-  ${Boost_LIBRARIES}
   source_lib
   container_lib
   ptcClient_lib
   log_lib
   ptcParser_lib
   ${OPENSSL_LIBRARIES}
-  # ${PCL_LIBRARIES} 
 )
 else(${CUDA_FOUND})
 	MESSAGE(STATUS "cuda not found!")

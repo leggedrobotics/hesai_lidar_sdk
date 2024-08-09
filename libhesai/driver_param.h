@@ -33,6 +33,9 @@ namespace hesai
 {
 namespace lidar
 {
+
+#define NULL_TOPIC  "your topic name"
+
 enum SourceType
 {
   DATA_FROM_LIDAR = 1,
@@ -44,6 +47,12 @@ enum PtcMode
 {
   tcp = 0, 
   tcp_ssl
+};
+
+enum UseTimestampType
+{
+  point_cloud_timestamp = 0,
+  sdk_recv_timestamp = 1,
 };
 
 ///< The Point transform parameter
@@ -78,11 +87,16 @@ typedef struct DecoderParam
   bool enable_parser_thread = true;
   bool pcap_play_synchronization = true;
   //start a new frame when lidar azimuth greater than frame_start_azimuth
-  //range:1-359, set frame_start_azimuth less than 0 if you do want to use it
-  float frame_start_azimuth = 359;
+  //range:[0-360), set frame_start_azimuth less than 0 if you do want to use it
+  float frame_start_azimuth = 1;
   // enable the udp packet loss detection tool
   // it forbiddens parser udp packet while trun on this tool
   bool enable_packet_loss_tool = false;
+  // 0 use point cloud timestamp
+  // 1 use sdk receive timestamp
+  uint16_t use_timestamp_type = point_cloud_timestamp;
+  int fov_start = -1;
+  int fov_end = -1;
 } DecoderParam;
 
 ///< The LiDAR input parameter
@@ -107,11 +121,33 @@ typedef struct InputParam
   std::string correction_file_path = "Your correction file path";   ///< Path of angle calibration files(angle.csv).Only used for internal debugging.
   std::string firetimes_path = "Your firetime file path";  ///< Path of firetime files(angle.csv).
   /// certFile          Represents the path of the user's certificate
-  char* certFile = nullptr;
+  const char* certFile = nullptr;
   /// privateKeyFile    Represents the path of the user's private key
-  char* privateKeyFile = nullptr;
+  const char* privateKeyFile = nullptr;
   /// caFile            Represents the path of the root certificate
-  char* caFile = nullptr;
+  const char* caFile = nullptr;
+  /// standby_mode    set the standby_mode of lidar
+  int standby_mode = -1;
+  /// speed             set the rotational speed of lidar
+  int speed = -1;
+
+  bool send_packet_ros;
+  bool send_point_cloud_ros;
+  std::string frame_id;
+
+  std::string ros_send_packet_topic = NULL_TOPIC;
+  std::string ros_send_point_topic = NULL_TOPIC;
+  std::string ros_send_packet_loss_topic = NULL_TOPIC; 
+  std::string ros_send_ptp_topic = NULL_TOPIC;
+  std::string ros_send_correction_topic = NULL_TOPIC;
+  std::string ros_send_firetime_topic = NULL_TOPIC;
+
+  std::string ros_recv_correction_topic = NULL_TOPIC;
+  std::string ros_recv_packet_topic = NULL_TOPIC;
+
+  std::string output_rosbag_directory = "/tmp/";  
+  bool save_replayed_topics_to_rosbag = false;
+
 } InputParam;
 
 ///< The LiDAR driver parameter

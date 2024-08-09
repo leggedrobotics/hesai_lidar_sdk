@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 14)
 PROJECT(SDKTool)
 set(VERSION_MAJOR 2)
 set(VERSION_MINOR 0)
-set(VERSION_TINY  5)
+set(VERSION_TINY  7)
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/Version.h"
@@ -24,12 +24,10 @@ endif()
 
 
 include_directories("${PROJECT_BINARY_DIR}")
-find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 find_package(OpenSSL REQUIRED)
 add_definitions(-DQT_MESSAGELOGCONTEXT)
 add_subdirectory(../libhesai lbhesai.out)
 
-# set (Boost_INCLUDE_DIRS "/usr/lib/x86_64-linux-gnu/")
 
 include_directories(
   ../libhesai
@@ -52,11 +50,9 @@ include_directories(
   ../libhesai/include
   ../driver
   ../third_party
-  ${Boost_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIR}
 )
 link_directories(../libhesai/PtcClient/lib)
-link_directories(${Boost_LIBRARY_DIRS})
 
 
 add_executable(packet_loss_tool
@@ -64,7 +60,6 @@ add_executable(packet_loss_tool
 )
 
 target_link_libraries(packet_loss_tool
-  ${Boost_LIBRARIES}
   source_lib
   container_lib
   ptcClient_lib
@@ -82,7 +77,6 @@ add_executable(pcl_tool
 )
 
 target_link_libraries(pcl_tool
-  ${Boost_LIBRARIES}
   source_lib
   container_lib
   ptcClient_lib
@@ -92,8 +86,23 @@ target_link_libraries(pcl_tool
   ${OPENSSL_LIBRARIES}
 )
 
+add_executable(ptc_tool
+  ./ptc_tool.cc
+)
 
-find_package(CUDA )
+target_link_libraries(ptc_tool
+  source_lib
+  container_lib
+  ptcClient_lib
+  ptcParser_lib
+  log_lib
+  ${PCL_LIBRARIES}  
+  ${OPENSSL_LIBRARIES}
+)
+
+# No support cuda and pcl compile, the error case will occur
+# error: unterminated argument list invoking macro "VTK_AUTOINIT1" 
+# find_package(CUDA )
 if(${CUDA_FOUND})
 	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
 	set(CUDA_SEPARABLE_COMPILATION ON)
@@ -110,7 +119,6 @@ if(${CUDA_FOUND})
   ../libhesai/UdpParserGpu/src/buffer.cu
   )
   target_link_libraries(pcl_tool_gpu 
-  ${Boost_LIBRARIES}
   source_lib
   container_lib
   ptcClient_lib

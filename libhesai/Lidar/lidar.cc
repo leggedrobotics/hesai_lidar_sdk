@@ -45,8 +45,9 @@ Lidar<T_Point>::Lidar() {
   parser_thread_running_ = true;
   handle_thread_count_ = 0;
   recieve_packet_thread_ptr_ = nullptr;
-  mutex_list_ = new boost::mutex[GetAvailableCPUNum()];
+  mutex_list_ = new std::mutex[GetAvailableCPUNum()];
   handle_buffer_size_ = kPacketBufferSize;
+  source_ = nullptr;
 }
 
 template <typename T_Point>
@@ -124,39 +125,59 @@ int Lidar<T_Point>::Init(const DriverParam& param) {
                                                   , 1
                                                   , param.input_param.certFile
                                                   , param.input_param.privateKeyFile
-                                                  , param.input_param.caFile); 
-
-      // ptc_client_ = new (std::nothrow) PtcClient(param.input_param.device_ip_address, param.input_param.ptc_port); 
+                                                  , param.input_param.caFile
+                                                  , 1000
+                                                  , 1000);
+      if (param.input_param.standby_mode != -1) {
+        if(!SetStandbyMode(ptc_client_, param.input_param.standby_mode)) {
+          std::cout << "set standby mode successed!" << std::endl;
+        } else {
+          std::cout << "set standby mode failed!" << std::endl;
+        }
+      }
+      if (param.input_param.speed != -1) {
+        if(!SetSpinSpeed(ptc_client_, param.input_param.speed)) {
+          std::cout << "set speed successed!" << std::endl;
+        } else {
+          std::cout << "set speed failed!" << std::endl;
+        }
+      }
       source_ = new SocketSource(param.input_param.udp_port, param.input_param.multicast_ip_address);
       source_->Open();
     }
     parser_thread_running_ = param.decoder_param.enable_parser_thread;
     udp_thread_running_ = param.decoder_param.enable_udp_thread;
+    
+    use_timestamp_type_ = param.decoder_param.use_timestamp_type;
+    fov_start_ = param.decoder_param.fov_start;
+    fov_end_ = param.decoder_param.fov_end;
+    SetThreadNum(param.decoder_param.thread_num);
+    /********************************************************************************/
+
+    /***************************Init decoder****************************************/   
+    // clock_t start_time, end_time;
+    // double time_interval = 0;
+    UdpPacket udp_packet;
+    LidarDecodedPacket<T_Point> decoded_packet;
+    // start_time = clock();
+    while (udp_parser_->GetParser() == nullptr) {
+      int ret = this->GetOnePacket(udp_packet);
+      // Avoid configuring the actual lidar to have problems with the lidar connection causing the program card here.
+      if (param.input_param.source_type == 1 && ret == -1) return ret;
+      if (ret == -1) continue;
+      this->DecodePacket(decoded_packet, udp_packet);
+      // end_time = clock();
+      // time_interval = double(end_time-start_time) / CLOCKS_PER_SEC;
+    }
+    if (udp_parser_->GetParser() == nullptr) {
+      return res;
+    }
     udp_parser_->SetTransformPara(param.decoder_param.transform_param.x, \
                                   param.decoder_param.transform_param.y, \
                                   param.decoder_param.transform_param.z, \
                                   param.decoder_param.transform_param.roll, \
                                   param.decoder_param.transform_param.pitch, \
                                   param.decoder_param.transform_param.yaw);
-    SetThreadNum(param.decoder_param.thread_num);
-    /********************************************************************************/
-
-    /***************************Init decoder****************************************/   
-    clock_t start_time, end_time;
-    double time_interval = 0;
-    UdpPacket udp_packet;
-    LidarDecodedPacket<T_Point> decoded_packet;
-    start_time = clock();
-    while (udp_parser_->GetParser() == nullptr) {
-      int ret = this->GetOnePacket(udp_packet);
-      if (ret == -1) continue;
-      this->DecodePacket(decoded_packet, udp_packet);
-      end_time = clock();
-      time_interval = double(end_time-start_time) / CLOCKS_PER_SEC;
-    }
-    if (udp_parser_->GetParser() == nullptr) {
-      return res;
-    }
     switch (param.input_param.source_type)
     {
     case 1:
@@ -183,12 +204,25 @@ int Lidar<T_Point>::Init(const DriverParam& param) {
 }
 
 template <typename T_Point>
+int Lidar<T_Point>::LoadCorrectionFromROSbag() {
+  if (udp_parser_) {
+    return udp_parser_->LoadCorrectionString(
+        (char *)correction_string_.data());
+  } else {
+    std::cout << __func__ << "udp_parser_ nullptr\n";
+    return -1;
+  }
+  return 0;
+}
+
+template <typename T_Point>
 int Lidar<T_Point>::LoadCorrectionForUdpParser() {
   u8Array_t sData;
   if (ptc_client_->GetCorrectionInfo(sData) != 0) {
     std::cout << __func__ << "get correction info fail\n";
     return -1;
   }
+  correction_string_ = sData;
   if (udp_parser_) {
     return udp_parser_->LoadCorrectionString(
         (char *)sData.data());
@@ -207,6 +241,7 @@ int Lidar<T_Point>::SaveCorrectionFile(std::string correction_save_path) {
     std::cout << __func__ << "get correction info fail\n";
     return ret;
   }
+  correction_string_ = raw_data;
   std::string correction_content_str = (char*) raw_data.data();
   std::ofstream out_file(correction_save_path, std::ios::out);
   if(out_file.is_open()) {
@@ -235,8 +270,11 @@ int Lidar<T_Point>::SetLidarType(std::string lidar_type) {
 
 template <typename T_Point>
 int Lidar<T_Point>::GetOnePacket(UdpPacket &packet) {
-  if (origin_packets_buffer_.try_pop_front(packet))  return 0;
-  else  return -1;
+  if (origin_packets_buffer_.try_pop_front(packet)) {
+     return 0;}
+  else {
+     return -1;
+  }
 }
 
 template <typename T_Point>
@@ -267,7 +305,7 @@ int Lidar<T_Point>::SaveUdpPacket(const std::string &record_path,
 
 template <typename T_Point>
 int Lidar<T_Point>::ComputeXYZI(LidarDecodedPacket<T_Point> &packet) {
-  int ret = -1;
+
   decoded_packets_buffer_.push_back(std::move(packet));
   return 0;
 
@@ -298,7 +336,7 @@ int Lidar<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const UdpPac
 
 template <typename T_Point>
 bool Lidar<T_Point>::ComputeXYZIComplete(int index) {
-  return frame_.packet_num == index;
+  return frame_.packet_num == (uint32_t)index;
 }
 
 template <typename T_Point>
@@ -374,12 +412,12 @@ int Lidar<T_Point>::GetGeneralParser(GeneralParser<T_Point> **parser) {
 template <typename T_Point>
 void Lidar<T_Point>::RecieveUdpThread() {
   if(!udp_thread_running_) return;
-  uint32_t u32StartTime = GetMicroTickCount();
+  // uint32_t u32StartTime = GetMicroTickCount();
   std::cout << "Lidar::Recieve Udp Thread start to run\n";
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     if (source_ == nullptr) {
@@ -394,7 +432,7 @@ void Lidar<T_Point>::RecieveUdpThread() {
     }
     while(origin_packets_buffer_.full() && running_) std::this_thread::sleep_for(std::chrono::microseconds(1000));
     if(running_ == false) break;
-
+    udp_packet.recv_timestamp = GetMicroTimeU64();
     switch (len) {
       case 0:
         if (is_timeout_ == false) {
@@ -417,7 +455,6 @@ void Lidar<T_Point>::RecieveUdpThread() {
         }
         break;
   }
-
     if (udp_packet.packet_len > 0 && is_record_pcap_) {
         udp_parser_->GetPcapSaver()->Dump(udp_packet.buffer, udp_packet.packet_len, udp_port_);
     }
@@ -433,13 +470,21 @@ void Lidar<T_Point>::ParserThread() {
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   while (running_) {
     LidarDecodedPacket<T_Point> decoded_packet;
-    decoded_packets_buffer_.try_pop_front(decoded_packet);
+    bool decoded_result = decoded_packets_buffer_.try_pop_front(decoded_packet);
+    // decoded_packet.use_timestamp_type = use_timestamp_type_;
     if (handle_thread_count_ < 2) {
-      udp_parser_->ComputeXYZI(frame_, decoded_packet);
+      if (decoded_result)
+      {
+        udp_parser_->ComputeXYZI(frame_, decoded_packet);
+      }
+      // else
+      // {
+      //   printf("decoded_packets_buffer_ try_pop_front timeout\n");
+      // }
       continue;
     } else {
       nUDPCount = nUDPCount % handle_thread_count_;
@@ -458,11 +503,11 @@ void Lidar<T_Point>::ParserThread() {
 
 template <typename T_Point>
 void Lidar<T_Point>::HandleThread(int nThreadNum) {
-  struct timespec timeout;
+  // struct timespec timeout;
 #ifdef _MSC_VER
   SetThreadPriorityWin(THREAD_PRIORITY_TIME_CRITICAL);
 #else
-  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_MEDIUM);
+  SetThreadPriority(SCHED_FIFO, SHED_FIFO_PRIORITY_HIGH);
 #endif
   if(!parser_thread_running_) return;
   while (running_) {
@@ -511,21 +556,48 @@ void Lidar<T_Point>::SetThreadNum(int nThreadNum) {
     handle_thread_packet_buffer_.resize(nThreadNum);
 
     for (int i = 0; i < nThreadNum; i++) {
-      boost::arg<1> _1;
-      handle_thread_vec_[i] = new boost::thread(
-          boost::bind(&Lidar::HandleThread, this, _1), i);
+      handle_thread_vec_[i] = new std::thread(
+          std::bind(&Lidar::HandleThread, this, std::placeholders::_1), i);
     }
   }
 
   handle_thread_count_ = nThreadNum;
   recieve_packet_thread_ptr_ =
-      new boost::thread(boost::bind(&Lidar::RecieveUdpThread, this));
+      new std::thread(std::bind(&Lidar::RecieveUdpThread, this));
   parser_thread_ptr_ =
-      new boost::thread(boost::bind(&Lidar::ParserThread, this));    
+      new std::thread(std::bind(&Lidar::ParserThread, this));    
 }
 template <typename T_Point>
 void Lidar<T_Point>::SetSource(Source **source) {
   source_ = *source;
+}
+
+
+template <typename T_Point>
+bool Lidar<T_Point>::IsPlayEnded()
+{
+  if (source_ == nullptr)
+  {
+    return false;
+  }
+  return source_->is_pcap_end;
+}
+
+template <typename T_Point>
+int Lidar<T_Point>::SetStandbyMode(PtcClient *Ptc_client, int standby_mode)
+{
+  u8Array_t input1, output1;
+  input1.push_back(static_cast<uint8_t>(standby_mode));
+  return Ptc_client->QueryCommand(input1, output1, CMD_SET_STANDBY_MODE);
+}
+
+template <typename T_Point>
+int Lidar<T_Point>::SetSpinSpeed(PtcClient *Ptc_client, int speed)
+{
+  u8Array_t input2, output2;
+  input2.push_back(static_cast<uint8_t>(speed >> 8));
+  input2.push_back(static_cast<uint8_t>(speed));
+  return Ptc_client->QueryCommand(input2, output2, CMD_SET_SPIN_SPEED);
 }
 
 template <typename T_Point>

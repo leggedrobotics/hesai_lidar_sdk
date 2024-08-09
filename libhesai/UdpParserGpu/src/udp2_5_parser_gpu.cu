@@ -135,7 +135,7 @@ compute_xyzs_2_5_impl<<<kMaxPacketNumPerFrame, kMaxPointsNumPerPacket>>>(this->f
 }
 template<typename T_Point>
 int Udp2_5ParserGpu<T_Point>::LoadCorrectionString(char *data) {
-  if (LoadCorrectionDatData(data)) {
+  if (LoadCorrectionDatData(data) == 0) {
     return 0;
   }
   return LoadCorrectionCsvData(data);
@@ -154,7 +154,7 @@ int  Udp2_5ParserGpu<T_Point>::LoadCorrectionCsvData(char *correction_string)
   std::getline(ifs, line);  
   float elevation_list[MAX_LASER_NUM], azimuth_list[MAX_LASER_NUM];
   std::vector<std::string> vfirstLine;
-  boost::split(vfirstLine, line, boost::is_any_of(","));
+  split_string(vfirstLine, line, ',');
   if (vfirstLine[0] == "EEFF" || vfirstLine[0] == "eeff") {
     // skip second line
     std::getline(ifs, line);  
@@ -163,7 +163,7 @@ int  Udp2_5ParserGpu<T_Point>::LoadCorrectionCsvData(char *correction_string)
   int lineCount = 0;
   while (std::getline(ifs, line)) {
     std::vector<std::string> vLineSplit;
-    boost::split(vLineSplit, line, boost::is_any_of(","));
+    split_string(vLineSplit, line, ',');
     // skip error line or hash value line
     if (vLineSplit.size() < 3) {  
       continue;
@@ -214,19 +214,19 @@ int Udp2_5ParserGpu<T_Point>::LoadCorrectionDatData(char *data) {
     if (0xee == ETheader.delimiter[0] && 0xff == ETheader.delimiter[1]) {
       switch (ETheader.min_version) {
         case 1: {
-          memcpy((void *)&corrections_, p, sizeof(struct ETCorrectionsHeader));
+          memcpy((void *)&corrections_.header, p, sizeof(struct ETCorrectionsHeader));
           p += sizeof(ETCorrectionsHeader);
-          auto channel_num = corrections_.channel_number;
-          uint16_t division = corrections_.angle_division;
+          auto channel_num = corrections_.header.channel_number;
+          uint16_t division = corrections_.header.angle_division;
           memcpy((void *)&corrections_.raw_azimuths, p,
                  sizeof(int16_t) * channel_num);
           p += sizeof(int16_t) * channel_num;
           memcpy((void *)&corrections_.raw_elevations, p,
                  sizeof(int16_t) * channel_num);
           p += sizeof(uint32_t) * channel_num;
-          corrections_.elevations[0] = ((float)(corrections_.apha)) / division;
-          corrections_.elevations[1] = ((float)(corrections_.beta)) / division;
-          corrections_.elevations[2] = ((float)(corrections_.gamma)) / division;
+          corrections_.elevations[0] = ((float)(corrections_.header.apha)) / division;
+          corrections_.elevations[1] = ((float)(corrections_.header.beta)) / division;
+          corrections_.elevations[2] = ((float)(corrections_.header.gamma)) / division;
           printf("apha:%f, beta:%f, gamma:%f\n", corrections_.elevations[0], corrections_.elevations[1], corrections_.elevations[2]);
           for (int i = 0; i < channel_num; i++) {
             corrections_.azimuths[i + 3] = ((float)(corrections_.raw_azimuths[i])) / division;

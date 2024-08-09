@@ -39,8 +39,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HS_LIDAR_QT128_LOOP_NUM (4)
 #define HS_LIDAR_QT128_COORDINATE_CORRECTION_ODOG (0.0354)
 #define HS_LIDAR_QT128_COORDINATE_CORRECTION_OGOT (-0.0072)
-
-#include <boost/algorithm/string.hpp>
 #include <fstream>
 #include "general_parser.h"
 #include "udp_protocol_v3_2.h"
@@ -74,8 +72,9 @@ class Udp3_2Parser : public GeneralParser<T_Point> {
   virtual int LoadFiretimesString(char *firetimes_string);
   virtual void LoadFiretimesFile(std::string firetimes_path);
 
+  using GeneralParser<T_Point>::GetFiretimesCorrection;
   // compute lidar distance correction
-  virtual double GetFiretimesCorrection(int laserId, double speed, int loopIndex);
+  double GetFiretimesCorrection(int laserId, double speed, int loopIndex);
 
   // compute lidar distance correction
   void GetDistanceCorrection(double &azimuth, double &elevation, double &distance);
@@ -88,6 +87,9 @@ class Udp3_2Parser : public GeneralParser<T_Point> {
   // covert a origin udp packet to decoded packet, the decode function is in UdpParser module
   // udp_packet is the origin udp packet, output is the decoded packet
   virtual int DecodePacket(LidarDecodedPacket<T_Point> &output, const UdpPacket& udpPacket);    
+
+  // covert a origin udp packet to decoded data, and pass the decoded data to a frame struct to reduce memory copy
+  virtual int DecodePacket(LidarDecodedFrame<T_Point> &frame, const UdpPacket& udpPacket);
 
   // compute xyzi of points from decoded packet
   // param packet is the decoded packet; xyzi of points after computed is puted in frame  

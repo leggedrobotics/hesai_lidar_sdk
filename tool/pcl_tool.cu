@@ -4,13 +4,13 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/pcd_io.h>
 
-// #define SAVE_PCD_FILE
+// #define SAVE_PCD_FILE_ASCII
+// #define SAVE_PCD_FILE_BIN
+// #define SAVE_PCD_FILE_BIN_COMPRESSED
 // #define SAVE_PLY_FILE
 // #define ENABLE_VIEWER
 
-// using namespace hesai::lidar;
 struct PointXYZIT {
-  //添加pcl里xyz
   PCL_ADD_POINT4D   
   float intensity;
   double timestamp;
@@ -20,8 +20,8 @@ struct PointXYZIT {
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(
     PointXYZIT,
-    (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(
-        double, timestamp, timestamp)(uint16_t, ring, ring))
+    (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)
+    (double, timestamp, timestamp)(std::uint16_t, ring, ring))
 
 
 using namespace pcl::visualization;
@@ -48,17 +48,30 @@ void lidarCallback(const LidarDecodedFrame<PointXYZIT>  &frame) {
   pcl_pointcloud->width = frame.points_num;
   pcl_pointcloud->is_dense = false;
   
-  std::string file_name = "./PointCloudFrame" + std::to_string(frame.frame_index) + ".pcd";
-
-//save point cloud with pcd file if define SAVE_PCD_FILE
-#ifdef SAVE_PCD_FILE
+  std::string file_name1 = "./PointCloudFrame" + std::to_string(frame.frame_index) + "_" + std::to_string(frame.points[0].timestamp)+ ".pcd";
+  std::string file_name2 = "./PointCloudFrame" + std::to_string(frame.frame_index) + "_" + std::to_string(frame.points[0].timestamp)+ ".bin";
+  std::string file_name3 = "./PointCloudFrame" + std::to_string(frame.frame_index) + "_" + std::to_string(frame.points[0].timestamp)+ ".ply";
+  std::string file_name4 = "./PointCloudFrame" + std::to_string(frame.frame_index) + "_" + std::to_string(frame.points[0].timestamp)+ "_compress" + ".bin";
+//save point cloud with pcd file(ASCII) if define SAVE_PCD_FILE_ASCII.
+#ifdef SAVE_PCD_FILE_ASCII
   pcl::PCDWriter writer;
-  writer.writeASCII(file_name, *pcl_pointcloud);
-#endif  
+  // you can change the value of precision to adjust the precison
+  int precision = 16;
+  writer.writeASCII(file_name1, *pcl_pointcloud, precision);
+#endif
+//save point cloud with pcd file(BIN) if define SAVE_PCD_FILE_BIN.
+#ifdef SAVE_PCD_FILE_BIN
+  pcl::io::savePCDFileBinary(file_name2, *pcl_pointcloud);
+#endif
+// save point cloud with pcd file(binary_compress) if define SAVE_PCD_FILE_BIN_COMPRESSED
+#ifdef SAVE_PCD_FILE_BIN_COMPRESSED
+  pcl::io::savePCDFileBinaryCompressed(file_name4, *pcl_pointcloud);
+#endif
+//save point cloud with ply file if define SAVE_PLY_FILE
 #ifdef SAVE_PLY_FILE
   pcl::PLYWriter writer1;
-  writer1.write(file_name, *pcl_pointcloud, true);
-#endif    
+  writer1.write(file_name3, *pcl_pointcloud, true);
+#endif       
 
 //display point cloud with pcl if define ENABLE_VIEWER
 #ifdef ENABLE_VIEWER   
@@ -114,7 +127,6 @@ int main(int argc, char *argv[])
   sample.Start();
   while (1)
   {
-
 #ifdef ENABLE_VIEWER   
     mex_viewer.lock();
     if(pcl_viewer->wasStopped()) break;
@@ -122,6 +134,5 @@ int main(int argc, char *argv[])
     mex_viewer.unlock();
 #endif     
     std::this_thread::sleep_for(std::chrono::milliseconds(40));
-
   }
 }

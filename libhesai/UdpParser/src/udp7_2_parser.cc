@@ -93,7 +93,7 @@ int Udp7_2Parser<T_Point>::LoadCorrectionCsvData(char *correction_string) {
 	}
 	int lineCounter = 0;
 	std::vector<std::string>  firstLine;
-	boost::split(firstLine, line, boost::is_any_of(","));
+  split_string(firstLine, line, ',');
   while (std::getline(ifs, line)) {
     if(line.length() < strlen("1,1,1,1")) {
       return -1;
@@ -204,7 +204,7 @@ int Udp7_2Parser<T_Point>::LoadCorrectionDatData(char *correction_string) {
 
 template<typename T_Point>
 int Udp7_2Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDecodedPacket<T_Point> &packet) {
-  T_Point point;
+  // T_Point point;
   for (int i = 0; i < packet.laser_num; i++) {
     int point_index = packet.packet_index * packet.points_num + i;
     float distance = packet.distances[i] * packet.distance_unit;
@@ -215,7 +215,14 @@ int Udp7_2Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarD
       elevation = packet.elevation[i];
       elevation = (CIRCLE + elevation) % CIRCLE;
       azimuth = (CIRCLE + azimuth) % CIRCLE;
-    }      
+    }
+    if (packet.config.fov_start != -1 && packet.config.fov_end != -1)
+    {
+      int fov_transfer = azimuth / 256 / 100;
+      if (fov_transfer < packet.config.fov_start || fov_transfer > packet.config.fov_end){//不在fov范围continue
+        continue;
+      }
+    }           
     float xyDistance = distance * this->cos_all_angle_[(elevation)];
     float x = xyDistance * this->sin_all_angle_[(azimuth)];
     float y = xyDistance * this->cos_all_angle_[(azimuth)];
@@ -246,7 +253,11 @@ int Udp7_2Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
       reinterpret_cast<const HS_LIDAR_TAIL_FT_V2 *>(
           (const unsigned char *)pHeader + sizeof(HS_LIDAR_HEADER_FT_V2) +
           (sizeof(HS_LIDAR_BODY_CHN_UNIT_FT_V2) * pHeader->GetChannelNum()));  
-  output.sensor_timestamp = pTail->GetMicroLidarTimeU64();
+  if (output.use_timestamp_type == 0) {
+    output.sensor_timestamp = pTail->GetMicroLidarTimeU64();
+  } else {
+    output.sensor_timestamp = udpPacket.recv_timestamp;
+  }
   output.host_timestamp = GetMicroTickCountU64();
 
   if (this->enable_packet_loss_tool_ == true) {
@@ -264,8 +275,8 @@ int Udp7_2Parser<T_Point>::DecodePacket(LidarDecodedPacket<T_Point> &output, con
   output.scan_complete = false;
   output.distance_unit = pHeader->GetDistUnit();
   int index = 0;
-  float minAzimuth = 0;
-  float maxAzimuth = 0;
+  // float minAzimuth = 0;
+  // float maxAzimuth = 0;
   output.block_num = 1;
   output.laser_num = pHeader->GetChannelNum();
 
@@ -295,4 +306,11 @@ bool Udp7_2Parser<T_Point>::IsNeedFrameSplit(uint16_t column_id, uint16_t total_
       return true;
     }
   return false;
+}
+
+template<typename T_Point>
+int Udp7_2Parser<T_Point>::DecodePacket(LidarDecodedFrame<T_Point> &frame, const UdpPacket& udpPacket)
+{
+  // TO DO
+  return 0;
 }
