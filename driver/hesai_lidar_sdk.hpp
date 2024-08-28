@@ -45,6 +45,7 @@ private:
   std::function<void(const uint8_t&, const u8Array_t&)> ptp_cb_;
   bool is_thread_runing_;
   bool packet_loss_tool_;
+  
 public:
   HesaiLidarSdk() {
     std::cout << "-------- Hesai Lidar SDK V" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_TINY << " --------" << std::endl;
@@ -58,6 +59,7 @@ public:
     Stop();
   }
   Lidar<T_Point> *lidar_ptr_;
+  std::string inputRosbagPath_ = "";
 
   //init lidar with param. init logger, udp parser, source, ptc client, start receive/parser thread
   bool Init(const DriverParam& param) 

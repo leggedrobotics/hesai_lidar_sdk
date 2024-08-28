@@ -143,6 +143,8 @@ public:
   int fov_start_ = 0;
   int fov_end_ = 0;
   u8Array_t correction_string_;
+  bool rosbagEnded_ = false;
+  std::string inputRosbagPath_;
 
 private:
   uint16_t ptc_port_;
