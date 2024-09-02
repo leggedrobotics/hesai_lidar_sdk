@@ -53,47 +53,47 @@ include_directories(
 )
 link_directories(./libhesai/PtcClient/lib)
 
-add_executable(sample
-  test/test.cc
-)
+# add_executable(sample
+#   test/test.cc
+# )
 
-target_link_libraries(sample
-  source_lib
-  container_lib
-  ptcClient_lib
-  ptcParser_lib
-  log_lib
-  ${OPENSSL_LIBRARIES}
-)
+# target_link_libraries(sample
+#   source_lib
+#   container_lib
+#   ptcClient_lib
+#   ptcParser_lib
+#   log_lib
+#   ${OPENSSL_LIBRARIES}
+# )
 
-# if install different cuda version, set the cuda path, like cuda-11.4
-# set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-11.4/)
-# find_package(CUDA REQUIRED)
-find_package(CUDA )
-if(${CUDA_FOUND})
-	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-	set(CUDA_SEPARABLE_COMPILATION ON)
-	include_directories(${CUDA_INCLUDE_DIRS})
-	set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-	set(CUDA_NVCC_FLAGS -arch=sm_61;-O3;-G;-g;-std=c++14)#根据具体GPU性能更改算力参数
-	link_directories($ENV{CUDA_PATH}/lib/x64)
-  file(GLOB_RECURSE CURRENT_HEADERS  *.h *.hpp *.cuh)
-  file(GLOB CURRENT_SOURCES  *.cpp *.cu)
-  file(GLOB CURRENT_SOURCES  *.cpp *.cu)
-  source_group("Include" FILES ${CURRENT_HEADERS}) 
-  source_group("Source" FILES ${CURRENT_SOURCES}) 
-  CUDA_ADD_EXECUTABLE(sample_gpu ${CURRENT_HEADERS} ${CURRENT_SOURCES} 
-  ./test/test.cu
-  ./libhesai/UdpParserGpu/src/buffer.cu)
-  target_link_libraries(sample_gpu
-  source_lib
-  container_lib
-  ptcClient_lib
-  log_lib
-  ptcParser_lib
-  ${OPENSSL_LIBRARIES}
-)
-else(${CUDA_FOUND})
-	MESSAGE(STATUS "cuda not found!")
-endif(${CUDA_FOUND})
+# # if install different cuda version, set the cuda path, like cuda-11.4
+# # set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-11.4/)
+# # find_package(CUDA REQUIRED)
+# find_package(CUDA )
+# if(${CUDA_FOUND})
+# 	set(CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+# 	set(CUDA_SEPARABLE_COMPILATION ON)
+# 	include_directories(${CUDA_INCLUDE_DIRS})
+# 	set(CUDA_PROPAGATE_HOST_FLAGS OFF)
+# 	set(CUDA_NVCC_FLAGS -arch=sm_61;-O3;-G;-g;-std=c++14)#根据具体GPU性能更改算力参数
+# 	link_directories($ENV{CUDA_PATH}/lib/x64)
+#   file(GLOB_RECURSE CURRENT_HEADERS  *.h *.hpp *.cuh)
+#   file(GLOB CURRENT_SOURCES  *.cpp *.cu)
+#   file(GLOB CURRENT_SOURCES  *.cpp *.cu)
+#   source_group("Include" FILES ${CURRENT_HEADERS}) 
+#   source_group("Source" FILES ${CURRENT_SOURCES}) 
+#   CUDA_ADD_EXECUTABLE(sample_gpu ${CURRENT_HEADERS} ${CURRENT_SOURCES} 
+#   ./test/test.cu
+#   ./libhesai/UdpParserGpu/src/buffer.cu)
+#   target_link_libraries(sample_gpu
+#   source_lib
+#   container_lib
+#   ptcClient_lib
+#   log_lib
+#   ptcParser_lib
+#   ${OPENSSL_LIBRARIES}
+# )
+# else(${CUDA_FOUND})
+# 	MESSAGE(STATUS "cuda not found!")
+# endif(${CUDA_FOUND})
 
