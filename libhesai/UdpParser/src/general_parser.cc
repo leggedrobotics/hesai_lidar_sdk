@@ -33,8 +33,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "general_parser.h"
-// #include <Eigen/Dense>
-// #include<Eigen/Core>
+
+// Colors
+#define YELLOW_START "\033[33m"
+#define COLOR_END "\033[0m"
+#define RED_START "\033[31m"
+#define GREEN_START "\033[92m"
+
 using namespace hesai::lidar;
 template <typename T_Point>
 GeneralParser<T_Point>::GeneralParser() {
@@ -109,7 +114,7 @@ void GeneralParser<T_Point>::LoadCorrectionFile(std::string correction_path) {
       std::cout << "Parser correction file success!" << std::endl;
     }
   } else {
-    std::cout << "Open correction file failed\n";
+    std::cout << RED_START << "Open correction file failed." << COLOR_END << "  Provided path: " << correction_path << std::endl;
     return;
   }
 }
@@ -188,7 +193,7 @@ void GeneralParser<T_Point>::LoadFiretimesFile(std::string firetimes_path) {
     inFile.close();
     return;
   } else {
-    std::cout << "Open firetime file failed" << std::endl;
+    std::cout << RED_START << "Open firetime file failed." << COLOR_END << "  Provided path: " << firetimes_path << std::endl;
     this->get_firetime_file_ = false;
     return;
   }
