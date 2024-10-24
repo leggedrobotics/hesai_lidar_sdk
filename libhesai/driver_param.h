@@ -147,6 +147,7 @@ typedef struct InputParam
 
   std::string output_rosbag_directory = "/tmp/";  
   bool save_replayed_topics_to_rosbag = false;
+  bool save_additional_last_point_timestamp_cloud = false;
 
 } InputParam;
 
