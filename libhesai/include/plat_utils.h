@@ -40,13 +40,15 @@ extern int GetAvailableCPUNum();
 template <typename T_Point>
 extern void split_string(T_Point&, const std::string&, char);
 template <typename T_Point>
-void split_string(T_Point& v, const std::string& s, char delimiter){
-    std::istringstream tokenStream(s);
-    std::string token;
-    while (std::getline(tokenStream, token, delimiter)) {
-        v.push_back(token);
-    }
+void split_string(T_Point& v, const std::string& s, char delimiter)
+{
+  std::istringstream tokenStream(s);
+  std::string token;
+  while (std::getline(tokenStream, token, delimiter))
+  {
+    v.push_back(token);
+  }
 }
 
-extern int GetCurrentTimeStamp(std::string &sTime, int nFormat = ISO_8601_FORMAT);
+extern int GetCurrentTimeStamp(std::string& sTime, int nFormat = ISO_8601_FORMAT);
 #endif  //_PLAT_UTILS_H_

@@ -3,15 +3,19 @@
 uint32_t last_frame_time = 0;
 uint32_t cur_frame_time = 0;
 
-//log info, display frame message
-void lidarCallback(const LidarDecodedFrame<LidarPointXYZIRT>  &frame) {  
+// log info, display frame message
+void lidarCallback(const LidarDecodedFrame<LidarPointXYZIRT>& frame)
+{
   cur_frame_time = GetMicroTickCount();
-  if (last_frame_time == 0) last_frame_time = GetMicroTickCount();
-  if (cur_frame_time - last_frame_time > kMaxTimeInterval) {
+  if (last_frame_time == 0)
+    last_frame_time = GetMicroTickCount();
+  if (cur_frame_time - last_frame_time > kMaxTimeInterval)
+  {
     printf("Time between last frame and cur frame is: %d us\n", (cur_frame_time - last_frame_time));
   }
   last_frame_time = cur_frame_time;
-  printf("frame:%d points:%u packet:%d start time:%lf end time:%lf\n",frame.frame_index, frame.points_num, frame.packet_num, frame.points[0].timestamp, frame.points[frame.points_num - 1].timestamp) ;
+  printf("frame:%d points:%u packet:%d start time:%lf end time:%lf\n", frame.frame_index, frame.points_num,
+         frame.packet_num, frame.points[0].timestamp, frame.points[frame.points_num - 1].timestamp);
 }
 // Determines whether the PCAP is finished playing
 bool IsPlayEnded(HesaiLidarSdk<LidarPointXYZIRT>& sdk)
@@ -19,10 +23,11 @@ bool IsPlayEnded(HesaiLidarSdk<LidarPointXYZIRT>& sdk)
   return sdk.lidar_ptr_->IsPlayEnded();
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
 #ifndef _MSC_VER
-  if (system("sudo sh -c \"echo 562144000 > /proc/sys/net/core/rmem_max\"") == -1) {
+  if (system("sudo sh -c \"echo 562144000 > /proc/sys/net/core/rmem_max\"") == -1)
+  {
     printf("Command execution failed!\n");
   }
 #endif
@@ -42,12 +47,12 @@ int main(int argc, char *argv[])
   param.input_param.host_ip_address = "";
   param.input_param.multicast_ip_address = "";
 
-  //init lidar with param
+  // init lidar with param
   sample.Init(param);
   float socket_buffer = 262144000;
   sample.lidar_ptr_->source_->SetSocketBufferSize(socket_buffer);
 
-  //assign callback fuction
+  // assign callback fuction
   sample.RegRecvCallback(lidarCallback);
 
   sample.Start();

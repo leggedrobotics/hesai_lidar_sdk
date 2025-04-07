@@ -45,16 +45,21 @@ namespace hesai
 {
 namespace lidar
 {
-class ClientBase {
- public:
-  explicit ClientBase(){}
-  virtual ~ClientBase(){}
-  virtual bool Open(std::string IPAddr, uint16_t port, bool bAutoReceive = false, 
-                    const char* cert  = nullptr, const char* private_key = nullptr, const char* ca = nullptr) = 0;
+class ClientBase
+{
+public:
+  explicit ClientBase()
+  {
+  }
+  virtual ~ClientBase()
+  {
+  }
+  virtual bool Open(std::string IPAddr, uint16_t port, bool bAutoReceive = false, const char* cert = nullptr,
+                    const char* private_key = nullptr, const char* ca = nullptr) = 0;
   virtual void Close() = 0;
   virtual bool IsOpened() = 0;
-  virtual int Send(uint8_t *u8Buf, uint16_t u16Len, int flags = 0) = 0;
-  virtual int Receive(uint8_t *u8Buf, uint32_t u16Len, int flags = 0) = 0;
+  virtual int Send(uint8_t* u8Buf, uint16_t u16Len, int flags = 0) = 0;
+  virtual int Receive(uint8_t* u8Buf, uint32_t u16Len, int flags = 0) = 0;
   /**
    * @brief 设置接收超时
    * @param u32Timeout 超时时间/ms
@@ -74,10 +79,10 @@ class ClientBase {
    * @brief 设置自动接收模式下Buff的大小
    * @param size
    */
-  virtual void SetReceiveBufferSize(const uint32_t &size) = 0;
+  virtual void SetReceiveBufferSize(const uint32_t& size) = 0;
 };
 
-}
-}
+}  // namespace lidar
+}  // namespace hesai
 
 #endif

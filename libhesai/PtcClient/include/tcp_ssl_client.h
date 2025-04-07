@@ -39,7 +39,7 @@
 #include <iostream>
 #ifdef _MSC_VER
 #include <winsock2.h>
-#include <ws2tcpip.h> 
+#include <ws2tcpip.h>
 #else
 typedef unsigned int SOCKET;
 #endif
@@ -50,24 +50,25 @@ namespace hesai
 {
 namespace lidar
 {
-class TcpSslClient : public ClientBase {
- public:
+class TcpSslClient : public ClientBase
+{
+public:
   explicit TcpSslClient();
   virtual ~TcpSslClient();
 
-  TcpSslClient(const TcpSslClient &orig) = delete;
+  TcpSslClient(const TcpSslClient& orig) = delete;
 
   // 设置ssl单双向模式、密钥、证书等
   SSL_CTX* InitSslClient(const char* cert, const char* private_key, const char* ca);
-  
-  virtual bool Open(std::string IPAddr, uint16_t port, bool bAutoReceive = false, 
-            const char* cert = nullptr, const char* private_key = nullptr, const char* ca = nullptr);
+
+  virtual bool Open(std::string IPAddr, uint16_t port, bool bAutoReceive = false, const char* cert = nullptr,
+                    const char* private_key = nullptr, const char* ca = nullptr);
   bool Open();
   virtual void Close();
   virtual bool IsOpened();
   bool IsOpened(bool bExpectation);
-  virtual int Send(uint8_t *u8Buf, uint16_t u16Len, int flags = 0);
-  virtual int Receive(uint8_t *u8Buf, uint32_t u32Len, int flags = 0);
+  virtual int Send(uint8_t* u8Buf, uint16_t u16Len, int flags = 0);
+  virtual int Receive(uint8_t* u8Buf, uint32_t u32Len, int flags = 0);
 
   /**
    * @brief 设置接收超时
@@ -88,13 +89,13 @@ class TcpSslClient : public ClientBase {
    * @brief 设置自动接收模式下Buff的大小
    * @param size
    */
-  virtual void SetReceiveBufferSize(const uint32_t &size);
+  virtual void SetReceiveBufferSize(const uint32_t& size);
 
- private:
+private:
   // void connect(const tcp::resolver::results_type& endpoints);
   void handshake();
 
- protected:
+protected:
   static const uint32_t kDefaultTimeout = 500;
 
   std::string m_sServerIP;
@@ -108,7 +109,7 @@ class TcpSslClient : public ClientBase {
   SOCKET tcpsock_;
   SSL* ssl_;
 };
-}
-}
+}  // namespace lidar
+}  // namespace hesai
 
 #endif

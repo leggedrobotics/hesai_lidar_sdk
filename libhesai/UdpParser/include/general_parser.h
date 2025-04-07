@@ -3,26 +3,26 @@ Copyright (C) 2023 Hesai Technology Co., Ltd.
 Copyright (C) 2023 Original Authors
 All rights reserved.
 
-All code in this repository is released under the terms of the following Modified BSD License. 
-Redistribution and use in source and binary forms, with or without modification, are permitted 
+All code in this repository is released under the terms of the following Modified BSD License.
+Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this list of conditions and 
+* Redistributions of source code must retain the above copyright notice, this list of conditions and
   the following disclaimer.
 
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and 
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
   the following disclaimer in the documentation and/or other materials provided with the distribution.
 
-* Neither the name of the copyright holder nor the names of its contributors may be used to endorse or 
+* Neither the name of the copyright holder nor the names of its contributors may be used to endorse or
   promote products derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED 
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR 
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR 
-TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************************************************************/
 
@@ -30,7 +30,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * File:       general_parser.h
  * Author:     Zhang Yu <zhangyu@hesaitech.com>
  * Description: Declare GeneralParser class
-*/
+ */
 
 #ifndef GENERAL_PARSER_H_
 #define GENERAL_PARSER_H_
@@ -56,7 +56,6 @@ namespace hesai
 {
 namespace lidar
 {
-
 #define DEFINE_MEMBER_CHECKER(member)                                                                                  \
   template <typename T, typename V = bool>                                                                             \
   struct has_##member : std::false_type                                                                                \
@@ -65,7 +64,7 @@ namespace lidar
   template <typename T>                                                                                                \
   struct has_##member<                                                                                                 \
       T, typename std::enable_if<!std::is_same<decltype(std::declval<T>().member), void>::value, bool>::type>          \
-      : std::true_type                                                                                                 \
+    : std::true_type                                                                                                   \
   {                                                                                                                    \
   };
 #define PANDAR_HAS_MEMBER(C, member) has_##member<C>::value
@@ -111,13 +110,13 @@ inline typename std::enable_if<PANDAR_HAS_MEMBER(T_Point, z)>::type setZ(T_Point
 
 template <typename T_Point>
 inline typename std::enable_if<!PANDAR_HAS_MEMBER(T_Point, intensity)>::type setIntensity(T_Point& point,
-                                                                                      const uint8_t& value)
+                                                                                          const uint8_t& value)
 {
 }
 
 template <typename T_Point>
 inline typename std::enable_if<PANDAR_HAS_MEMBER(T_Point, intensity)>::type setIntensity(T_Point& point,
-                                                                                     const uint8_t& value)
+                                                                                         const uint8_t& value)
 {
   point.intensity = value;
 }
@@ -135,28 +134,29 @@ inline typename std::enable_if<PANDAR_HAS_MEMBER(T_Point, ring)>::type setRing(T
 
 template <typename T_Point>
 inline typename std::enable_if<!PANDAR_HAS_MEMBER(T_Point, timestamp)>::type setTimestamp(T_Point& point,
-                                                                                      const double& value)
+                                                                                          const double& value)
 {
 }
 
 template <typename T_Point>
 inline typename std::enable_if<PANDAR_HAS_MEMBER(T_Point, timestamp)>::type setTimestamp(T_Point& point,
-                                                                                     const double& value)
+                                                                                         const double& value)
 {
   point.timestamp = value;
 }
 
 inline float deg2Rad(float deg)
 {
-    return (float)(deg * 0.01745329251994329575);
+  return (float)(deg * 0.01745329251994329575);
 }
 
 inline float rad2Deg(float rad)
 {
-    return (float)(rad * 57.29577951308232087721);
+  return (float)(rad * 57.29577951308232087721);
 }
 
-struct Transform {
+struct Transform
+{
   float x;
   float y;
   float z;
@@ -170,58 +170,59 @@ struct Transform {
 // you can parser the upd or pcap packets using the DocodePacket fuction
 // you can compute xyzi of points using the ComputeXYZI fuction, which uses cpu to compute
 template <typename T_Point>
-class GeneralParser {
- public:
+class GeneralParser
+{
+public:
   GeneralParser();
   virtual ~GeneralParser();
 
-  // get lidar correction file from local file,and pass to udp parser 
+  // get lidar correction file from local file,and pass to udp parser
   virtual void LoadCorrectionFile(std::string correction_path);
-  virtual int LoadCorrectionString(char *correction_string);
+  virtual int LoadCorrectionString(char* correction_string);
 
-  // get lidar firetime correction file from local file,and pass to udp parser 
+  // get lidar firetime correction file from local file,and pass to udp parser
   virtual void LoadFiretimesFile(std::string firetimes_path);
-  virtual int LoadFiretimesString(char *firetimes_string);
+  virtual int LoadFiretimesString(char* firetimes_string);
 
   // compute lidar firetime correciton
   virtual double GetFiretimesCorrection(int laserId, double speed);
 
   // compute lidar distance correction
-  virtual void GetDistanceCorrection(double &azimuth, double &elevation, double &distance);
+  virtual void GetDistanceCorrection(double& azimuth, double& elevation, double& distance);
   void SetEnableFireTimeCorrection(bool enable);
   void SetEnableDistanceCorrection(bool enable);
   // covert a origin udp packet to decoded packet, the decode function is in UdpParser module
   // udp_packet is the origin udp packet, output is the decoded packet
-  virtual int DecodePacket(LidarDecodedPacket<T_Point> &output, const UdpPacket& udpPacket); 
+  virtual int DecodePacket(LidarDecodedPacket<T_Point>& output, const UdpPacket& udpPacket);
 
   // covert a origin udp packet to decoded data, and pass the decoded data to a frame struct to reduce memory copy
-  virtual int DecodePacket(LidarDecodedFrame<T_Point> &frame, const UdpPacket& udpPacket); 
-   
-  // compute xyzi of points from decoded packet
-  // param packet is the decoded packet; xyzi of points after computed is puted in frame  
-  virtual int ComputeXYZI(LidarDecodedFrame<T_Point> &frame, LidarDecodedPacket<T_Point> &packet);
+  virtual int DecodePacket(LidarDecodedFrame<T_Point>& frame, const UdpPacket& udpPacket);
 
-  //set frame azimuth
+  // compute xyzi of points from decoded packet
+  // param packet is the decoded packet; xyzi of points after computed is puted in frame
+  virtual int ComputeXYZI(LidarDecodedFrame<T_Point>& frame, LidarDecodedPacket<T_Point>& packet);
+
+  // set frame azimuth
   virtual void SetFrameAzimuth(float frame_start_azimuth);
 
-  //set enable_packet_loss_tool_
+  // set enable_packet_loss_tool_
   virtual void EnablePacketLossTool(bool enable);
 
   void TransformPoint(float& x, float& y, float& z);
   void SetTransformPara(float x, float y, float z, float roll, float pitch, float yaw);
   void EnableUpdateMonitorInfo();
   void DisableUpdateMonitorInfo();
-  uint16_t *GetMonitorInfo1();
-  uint16_t *GetMonitorInfo2();
-  uint16_t *GetMonitorInfo3();
-  std::vector<double> elevation_correction_{0};
-  std::vector<double> azimuth_collection_{0};
+  uint16_t* GetMonitorInfo1();
+  uint16_t* GetMonitorInfo2();
+  uint16_t* GetMonitorInfo3();
+  std::vector<double> elevation_correction_{ 0 };
+  std::vector<double> azimuth_collection_{ 0 };
   uint32_t total_start_seqnum_;
   uint32_t total_loss_count_;
   uint32_t current_seqnum_;
   uint32_t total_packet_count_;
-  
- protected:
+
+protected:
   uint16_t monitor_info1_[256];
   uint16_t monitor_info2_[256];
   uint16_t monitor_info3_[256];
@@ -249,8 +250,8 @@ class GeneralParser {
   Transform transform_;
   float frame_start_azimuth_;
 };
-}
-}
+}  // namespace lidar
+}  // namespace hesai
 #include "general_parser.cc"
 
 #endif  // GENERAL_PARSER_H_
