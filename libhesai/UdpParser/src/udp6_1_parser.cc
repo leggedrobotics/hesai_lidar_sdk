@@ -70,11 +70,8 @@ int Udp6_1Parser<T_Point>::ComputeXYZI(LidarDecodedFrame<T_Point>& frame, LidarD
         elevation = (CIRCLE + elevation) % CIRCLE;
         azimuth = Azimuth + this->azimuth_collection_[i] * kResolutionInt;
         azimuth = (CIRCLE + azimuth) % CIRCLE;
-<<<<<<< Updated upstream
       } else{
         LogError("NO LIDAR CORRECTIONS");
-=======
->>>>>>> Stashed changes
       }
       if (packet.config.fov_start != -1 && packet.config.fov_end != -1)
       {
