@@ -67,8 +67,8 @@ target_link_libraries(packet_loss_tool
   ptcParser_lib
   ${OPENSSL_LIBRARIES}
 )
+find_package(PCL 1.10 EXACT REQUIRED PATHS /usr/include/pcl-1.10/)
 
-find_package(PCL COMPONENTS common visualization io QUIET REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 
