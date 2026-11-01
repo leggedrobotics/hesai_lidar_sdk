@@ -41,6 +41,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include "tcp_client.h"
 #include "udp_parser.h"
 #include "pcap_source.h"
@@ -107,6 +108,11 @@ public:
   int DecodePacket(LidarDecodedFrame<T_Point>& frame, const UdpPacket& udp_packet);
   // Determine whether all pointxyzi info is parsed in this frame
   bool ComputeXYZIComplete(int index);
+  // EOF barrier independent of the last packet's zero-based frame index.
+  bool AllPointsComputed() const
+  {
+    return completed_point_packets_.load() == queued_point_packets_.load();
+  }
   // save lidar correction file from ptc
   int SaveCorrectionFile(std::string correction_save_path);
   // get lidar correction file from ptc,and pass to udp parser
@@ -144,6 +150,8 @@ public:
   std::string inputRosbagPath_;
 
 private:
+  std::atomic<uint64_t> queued_point_packets_{0};
+  std::atomic<uint64_t> completed_point_packets_{0};
   uint16_t ptc_port_;
   uint16_t udp_port_;
   std::string device_ip_address_;

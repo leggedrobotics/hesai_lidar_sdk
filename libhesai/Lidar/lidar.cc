@@ -46,6 +46,10 @@ Lidar<T_Point>::Lidar()
   parser_thread_running_ = true;
   handle_thread_count_ = 0;
   recieve_packet_thread_ptr_ = nullptr;
+  parser_thread_ptr_ = nullptr;
+  // ROS-packet replay never creates a PTC client. Stop must not delete an
+  // indeterminate pointer when draining a replay before closing the output.
+  ptc_client_ = nullptr;
   mutex_list_ = new std::mutex[GetAvailableCPUNum()];
   handle_buffer_size_ = kPacketBufferSize;
   source_ = nullptr;
@@ -346,6 +350,7 @@ int Lidar<T_Point>::SaveUdpPacket(const std::string& record_path, const UdpFrame
 template <typename T_Point>
 int Lidar<T_Point>::ComputeXYZI(LidarDecodedPacket<T_Point>& packet)
 {
+  ++queued_point_packets_;
   decoded_packets_buffer_.push_back(std::move(packet));
   return 0;
 }
@@ -547,12 +552,14 @@ void Lidar<T_Point>::ParserThread()
   {
     LidarDecodedPacket<T_Point> decoded_packet;
     bool decoded_result = decoded_packets_buffer_.try_pop_front(decoded_packet);
+    if (!decoded_result) continue;
     // decoded_packet.use_timestamp_type = use_timestamp_type_;
     if (handle_thread_count_ < 2)
     {
       if (decoded_result)
       {
         udp_parser_->ComputeXYZI(frame_, decoded_packet);
+        ++completed_point_packets_;
       }
       // else
       // {
@@ -597,6 +604,7 @@ void Lidar<T_Point>::HandleThread(int nThreadNum)
       decoded_packet = handle_thread_packet_buffer_[nThreadNum].front();
       handle_thread_packet_buffer_[nThreadNum].pop_front();
       udp_parser_->ComputeXYZI(frame_, decoded_packet);
+      ++completed_point_packets_;
     }
     mutex_list_[nThreadNum].unlock();
   }

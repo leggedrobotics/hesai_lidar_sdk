@@ -28,6 +28,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 #include "lidar.h"
 #include "fault_message.h"
+#include <atomic>
 
 namespace hesai
 {
@@ -43,7 +44,9 @@ private:
   std::function<void(const u8Array_t&)> correction_cb_;
   std::function<void(const uint32_t&, const uint32_t&)> pkt_loss_cb_;
   std::function<void(const uint8_t&, const u8Array_t&)> ptp_cb_;
-  bool is_thread_runing_;
+  std::atomic<bool> is_thread_runing_{false};
+  std::atomic<bool> input_ended_{false};
+  std::function<void()> input_complete_cb_;
   bool packet_loss_tool_;
 
 public:
@@ -103,13 +106,22 @@ public:
   // start process thread
   void Start()
   {
+    is_thread_runing_ = true;
     runing_thread_ptr_ = new std::thread(std::bind(&HesaiLidarSdk::Run, this));
+  }
+
+  // Call only after the final packet has been queued and no producer will add
+  // more. Receiving EOF is not the same as decoding the final queued scan.
+  void FinishInput() { input_ended_ = true; }
+
+  void RegInputCompleteCallback(const std::function<void()>& callback)
+  {
+    input_complete_cb_ = callback;
   }
 
   // process thread
   void Run()
   {
-    is_thread_runing_ = true;
     UdpFrame_t udp_packet_frame;
     LidarDecodedPacket<T_Point> decoded_packet;
     decoded_packet.use_timestamp_type = lidar_ptr_->use_timestamp_type_;
@@ -127,7 +139,29 @@ public:
       // get one packte from origin_packets_buffer_, which receive data from upd or pcap thread
       int ret = lidar_ptr_->GetOnePacket(packet);
       if (ret == -1)
+      {
+        // Recheck the queue after observing EOF: a producer may have queued its
+        // final packets between GetOnePacket timing out and setting the flag.
+        if (input_ended_ && lidar_ptr_->origin_packets_buffer_.empty())
+        {
+          while (is_thread_runing_ && !lidar_ptr_->AllPointsComputed())
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+          if (!is_thread_runing_) return;
+
+          // There is no next azimuth boundary at EOF. Preserve the points that
+          // were actually received, including a short terminal scan. Do not
+          // invent a boundary packet or label the scan as a full revolution.
+          if (lidar_ptr_->frame_.points_num > 0)
+          {
+            if (point_cloud_cb_) point_cloud_cb_(lidar_ptr_->frame_);
+            if (pkt_cb_) pkt_cb_(udp_packet_frame, lidar_ptr_->frame_.points[0].timestamp);
+            lidar_ptr_->frame_.Update();
+          }
+          if (input_complete_cb_) input_complete_cb_();
+          return;
+        }
         continue;
+      }
       // get fault message
       if (packet.packet_len == kFaultMessageLength)
       {
